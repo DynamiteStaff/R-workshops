@@ -1,0 +1,119 @@
+---
+title: "Schelling"
+author: "PC&CC"
+date: "Summer School"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Schelling Segragation Model
+
+Here are some code lines to prepare the simulation of Schelling's Model of spatial segregation.
+We start by the environment.
+
+### Environment
+
+The environment is a static square grid of `size` *  `size` cells, filled at a given percentage `pctOccupied` of householder agents.
+A cell can be occupied by a single householder only. 
+Each householder belongs to one of two groups, denoted by color (here : Red, Blue).
+Basic Schelling model suggest that agents is randomly affected to one groupe or the other (50% of chance), yet we write the code as if it could change in the future.
+
+From the R code point of view, the environment is a matrix, and the state of the system is constituted by the values inside the matrix.
+At a given location (i,j), the value of the cell will be either 0 (empty cell), 1 (Red household), or 2 (Blue houshold).
+
+Cells are intialized with 0 at the creation of the `state` matrix.
+Households are randomly allocated in the grid by sampling (without replacement) positions.
+
+Household groups are then determined randomly :  the cell value is chosen between 1 and 2 (this time with replacement)  using `pctRed` and `pctBlue`  as probabilities weights.
+
+
+
+
+```{r setupState}
+size <- 10 
+pctOccupied <- 0.5
+pctRed <- 0.5
+pctBlue <- (1-pctRed)
+
+state <- matrix(NA,size,size)
+nbAgents <- floor(pctOccupied * size^2)
+householdCells <- sample(size ^ 2, nbAgents)
+state[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
+```
+
+
+Now that the sate has been defined, we will code the `display` function, to actually see something.
+
+
+##Display
+
+Display is achived by the **ggplot** library, a kind of wierd and fucked-up piece of software, but featuring so fancy graphic renderings,  you'll be seen as an old twat if you don't keep up and use it.
+
+For the record, we give the non-ggplot version first, using the `image` function. 
+N.B. matrix plot is counter-clockwise rotated by an angle of pi/2 ; here we don't care as there is no orientation problems in this theoretic example. 
+```{r displaySimple,fig.height=6, fig.width=6}
+library(Matrix)
+image(state, axes = FALSE,col=c("red","blue"))
+```
+
+This is beacause, by convention, we "naturally" draw __rows__ of a matrix along what would be the Y-axis of a plot. 
+According to the documentation : 
+
+> `image` interpret matrix as a table of f(x[i], y[j]) values, so that the x axis corresponds to row number and the y axis to >column number, with column 1 at the bottom, i.e. a 90 degree counter-clockwise rotation of the conventional printed layout of a matrix.
+
+(the same phenomenon occurs with ggplot2 )
+
+
+To obtain the ggplot version , the state data structure has to be tweaked a little bit.
+ggplot2 needs a datastructure where each line is formed as follows:
+```
+Xcoord | Ycoord | value
+```
+
+Starting from a matrix structure, this transformation is done by the `melt` function.
+
+
+```{r displayGGplot, fig.height=6, fig.width=6}
+library(ggplot2)
+library(reshape2)
+meltedState <- melt(state) 
+head(meltedState,10)  #to see what it looks like and get the column names
+
+# color definitions  
+colorMapping <- c("1"="red", "2"="blue") 
+
+
+myggplot <- ggplot(meltedState, aes(x=Var1, y=Var2)) +
+  geom_raster(aes(fill=factor(value)))+
+ scale_colour_manual(values = colorMapping)+
+  theme_void()
+myggplot            
+
+```
+
+TODO fix color not red nor blue
+
+## Dynamics
+
+Each household "aims"" at finding a location where the proportion of similar households in the neighborhood (surrounding cells) is above a certain `tolerance` threshold.
+   
+ At each simulation step, each agent :
+ 
+ 1. looks around him (Moore nieghborhood)
+ 2.
+ 
+  
+ 
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
