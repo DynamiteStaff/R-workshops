@@ -1,6 +1,6 @@
 ---
 title: "Schelling"
-author: "PC&CC"
+author: "CC&PC"
 date: "Summer School"
 output: html_document
 ---
@@ -17,8 +17,11 @@ We start by the environment.
 ### Environment
 
 The environment is a static square grid of `size` *  `size` cells, filled at a given percentage `pctOccupied` of householder agents.
+
 A cell can be occupied by a single householder only. 
+
 Each householder belongs to one of two groups, denoted by color (here : Red, Blue).
+
 Basic Schelling model suggest that agents is randomly affected to one groupe or the other (50% of chance), yet we write the code as if it could change in the future.
 
 From the R code point of view, the environment is a matrix, and the state of the system is constituted by the values inside the matrix.
@@ -50,49 +53,86 @@ Now that the sate has been defined, we will code the `display` function, to actu
 
 ##Display
 
-Display is achived by the **ggplot** library, a kind of wierd and fucked-up piece of software, but featuring so fancy graphic renderings,  you'll be seen as an old twat if you don't keep up and use it.
-
+Display uses the **ggplot** library, a wierd and fucked-up piece of software, with so fancy graphic renderings it seems impossible not to use it.
 For the record, we give the non-ggplot version first, using the `image` function. 
+
 N.B. matrix plot is counter-clockwise rotated by an angle of pi/2 ; here we don't care as there is no orientation problems in this theoretic example. 
-```{r displaySimple,fig.height=6, fig.width=6}
-par(fin=c(6,6))
-image(state, axes = FALSE,col=c("red","blue"))
-```
-
-This is beacause, by convention, we "naturally" draw *rows* of a matrix along what would be the Y-axis of a plot. 
+This is because, by convention, we "naturally" draw *rows* of a matrix along what would be the Y-axis of a plot. 
 According to the documentation : 
-
 > `image` interpret matrix as a table of f(x[i], y[j]) values, so that the x axis corresponds to row number and the y axis to >column number, with column 1 at the bottom, i.e. a 90 degree counter-clockwise rotation of the conventional printed layout of a matrix.
 
 (the same phenomenon occurs with ggplot2 )
 
 
+```{r displaySimple,fig.height=6, fig.width=6}
+par(fin=c(6,6)) #plot size setup
+image(state, axes = FALSE,col=c("red","blue"))
+```
+
+
 To obtain the ggplot version , the state data structure has to be tweaked a little bit.
-ggplot2 needs a datastructure where each line is formed as follows:
+ggplot2 needs a datastructure where each line is for an individual i.e. a piece of data, formed as follows:
 ```
-Xcoord | Ycoord | value
+    | Var1 | Var2 |    Var3  |
+row1| 20   | 12.4 | "Batman" |
+row2|  8   | 3.5  | "Robin"  |
 ```
+
+in our case, pieces of data are householders, located in the grid (`Xcoord,Ycoord`), blelonging to a group (`value`) so we need something like: 
+
+```
+      | Xcoord | Ycoord | Group |
+          ⋮       ⋮       ⋮ 
+row_n |   24   |   75   |   2   |
+          ⋮       ⋮       ⋮
+row_p |   58   |    8   |   1   |
+```
+
 
 Starting from a matrix structure, this transformation is done by the `melt` function.
 
 
-```{r displayGGplot, fig.height=6, fig.width=6}
+```{r meltGGplot}
 library(ggplot2)
 library(reshape2)
 meltedState <- melt(state) 
 head(meltedState,10)  #to see what it looks like and get the column names
+```
 
+
+
+```{r displayGGplot, fig.height=6, fig.width=6}
 # color definitions  
 colorMapping <- c("1"="red", "2"="blue") 
 
-
 myggplot <- ggplot(meltedState, aes(x=Var1, y=Var2)) +
   geom_raster(aes(fill=factor(value)))+
- scale_fill_manual(values = colorMapping)+
+ scale_fill_manual(values = colorMapping, na.value="lightgrey")+
   theme_void()
 myggplot            
 
 ```
+
+this does the job, 
+yet we can improve rendering by drawing household in cells as points, in a scattermap-like way:
+
+
+```{r displayGGplotfancy, fig.height=6, fig.width=6}
+# color definitions  
+library(RColorBrewer)
+fancyColors <- brewer.pal(3,"Set3")[1:2]
+
+myggplot2 <- ggplot(meltedState, aes(x=Var1, y=Var2, color=factor(value))) +
+  geom_point(size=1)+
+ scale_fill_manual(values = fancyColors , na.value="lightgrey")+
+  theme_void()+
+  coord_fixed(ratio = 1) + 
+  ggtitle("Schelling state")
+   
+myggplot2            
+
+```
+
 
 
 ## Dynamics
@@ -101,18 +141,18 @@ Each household "aims"" at finding a location where the proportion of similar hou
    
  At each simulation step, each agent :
  
- 1. looks around him (Moore nieghborhood)
- 2.
+ 1. looks around and establish the proportion of similar householder in its (Moore) nieghborhood
+ 2. if this proportion is below the threshold → looks for another place where the proportion is above , remains in place otherwise.
  
-  
  
+ To achieve this beahavior , we need a way to figure out :
+ - the neighborhood af an house holder
+ - where are the empty cells of the grid
+ - where are the adequate cells for each group are (i.e. whose neighborhood proportion of same group is below the tolerance threshold)
 
-## Including Plots
 
-You can also embed plots, for example:
+### Getting the neighborhood
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+ 
