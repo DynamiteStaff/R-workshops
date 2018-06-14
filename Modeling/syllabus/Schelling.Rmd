@@ -36,7 +36,7 @@ Household groups are then determined randomly :  the cell value is chosen betwee
 
 
 ```{r setupState}
-size <- 100
+size <- 10
 pctOccupied <- 0.5
 pctRed <- 0.5
 pctBlue <- (1-pctRed)
@@ -44,7 +44,7 @@ pctBlue <- (1-pctRed)
 state <- matrix(NA,size,size)
 nbAgents <- floor(pctOccupied * size^2)
 householdCells <- sample(size ^ 2, nbAgents)
-state[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
+state[householdCells] <-  sample(c("1","2"), nbAgents, replace = T, prob = c(pctRed,pctBlue))
 ```
 
 
@@ -120,16 +120,19 @@ yet we can improve rendering by drawing household in cells as points, in a scatt
 ```{r displayGGplotfancy, fig.height=6, fig.width=6}
 # color definitions  
 library(RColorBrewer)
-fancyColors <- brewer.pal(3,"Set3")[1:2]
+#fancyColors <- brewer.pal(3,"Accent")
+# declaration of colors by name
+fancyColors <- c("1"="bisque", "2"="aquamarine") 
 
-myggplot2 <- ggplot(meltedState, aes(x=Var1, y=Var2, color=factor(value))) +
-  geom_point(size=1)+
- scale_fill_manual(values = fancyColors , na.value="lightgrey")+
+myggplot2 <- ggplot(meltedState, aes(x=Var1, y=Var2)) +
+  geom_point(size=1, aes(colour=factor(value)))+ #size has to be adjusted regarding the size of the state
+ scale_color_manual( values=fancyColors, name="Group" )+
   theme_void()+
   coord_fixed(ratio = 1) + 
   ggtitle("Schelling state")
    
 myggplot2            
+
 
 ```
 
@@ -152,6 +155,58 @@ Each household "aims"" at finding a location where the proportion of similar hou
 
 
 ### Getting the neighborhood
+
+We will start with the Moore neighborhood (the 8 adjacents cells of a cell) ; this defintion could be extended in a later version.
+
+
+Given a coordinate (i,j) in the state matrix, the neighborhood is given by the following code. 
+Special cases of corner and border cells are treated by considering the environment as a torus.
+
+```{r neighbors}
+
+i <- 4
+j <- 4
+
+if (i==1){
+if(j==1){
+  neighborsAndMe <- state[c(size,i,i+1),c(size,j,j+1)] 
+}
+if(j==size){
+  neighborsAndMe <- state[c(size,i,i+1),c(j-1,j,1)] 
+}
+  neighborsAndMe <- state[c(size,i,i+1),c(j-1,j,j+1)] 
+}
+
+if (i==size){
+if(j==1){
+ neighborsAndMe<- state[c(i-1,i,1),c(size,j, j+1)]
+  }
+if(j==size){
+  neighborsAndMe <-state[c(i-1,i,1),c(j-1,j,1)]
+}
+  neighborsAndMe <-state[c(i-1,i,1),c(j-1,j,j+1)]
+}
+
+
+
+#regular cell case
+neighborsAndMe <- state[c(i-1,i,i+1),c(j-1,j,j+1)] 
+# flatten the 3x3 matrix
+nieghborhood <- as.vector(neighborsAndMe)
+#remove middle term (the caller cell i,j )
+neighborhood <- neighborhood[-5]
+
+
+getNeighbors <- function (i,j) {
+
+  (0 %% 100)
+  }
+```
+
+
+
+
+
 
 
 
