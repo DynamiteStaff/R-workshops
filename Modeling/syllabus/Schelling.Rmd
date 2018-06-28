@@ -44,7 +44,7 @@ pctBlue <- (1-pctRed)
 state <- matrix(NA,size,size)
 nbAgents <- floor(pctOccupied * size^2)
 householdCells <- sample(size ^ 2, nbAgents)
-state[householdCells] <-  sample(c("1","2"), nbAgents, replace = T, prob = c(pctRed,pctBlue))
+state[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
 ```
 
 
@@ -71,14 +71,14 @@ image(state, axes = FALSE,col=c("red","blue"))
 
 
 To obtain the ggplot version , the state data structure has to be tweaked a little bit.
-ggplot2 needs a datastructure where each line is for an individual i.e. a piece of data, formed as follows:
+ggplot2 needs a data structure where each line is  an individual i.e. a piece of data, formed as follows:
 ```
     | Var1 | Var2 |    Var3  |
 row1| 20   | 12.4 | "Batman" |
 row2|  8   | 3.5  | "Robin"  |
 ```
 
-in our case, pieces of data are householders, located in the grid (`Xcoord,Ycoord`), blelonging to a group (`value`) so we need something like: 
+in our case, pieces of data are householders, located in the grid by their coordinates (`Xcoord,Ycoord`), belonging to a group (`value`); so we need something like: 
 
 ```
       | Xcoord | Ycoord | Group |
@@ -93,7 +93,6 @@ Starting from a matrix structure, this transformation is done by the `melt` func
 
 
 ```{r meltGGplot}
-library(ggplot2)
 library(reshape2)
 meltedState <- melt(state) 
 head(meltedState,10)  #to see what it looks like and get the column names
@@ -102,6 +101,7 @@ head(meltedState,10)  #to see what it looks like and get the column names
 
 
 ```{r displayGGplot, fig.height=6, fig.width=6}
+library(ggplot2)
 # color definitions  
 colorMapping <- c("1"="red", "2"="blue") 
 
@@ -149,7 +149,7 @@ Each household "aims"" at finding a location where the proportion of similar hou
  
  
  To achieve this beahavior , we need a way to figure out :
- - the neighborhood af an house holder
+ - the neighborhood af a householder
  - where are the empty cells of the grid
  - where are the adequate cells for each group are (i.e. whose neighborhood proportion of same group is below the tolerance threshold)
 
@@ -160,50 +160,82 @@ We will start with the Moore neighborhood (the 8 adjacents cells of a cell) ; th
 
 
 Given a coordinate (i,j) in the state matrix, the neighborhood is given by the following code. 
-Special cases of corner and border cells are treated by considering the environment as a torus.
+The `meAndMyNeighbors(i,j)` select the neighboring portion of the (i,j) cell in the `state` matrix.
+The `getgetneighbors(i,j)` transforms this portion in a more convenient format (a list) and excludes the calling cell (i,j) 
+Special cases of corner and border cells are considered having incomplete neighborhood.
 
 ```{r neighbors}
-
-i <- 4
-j <- 4
-
-if (i==1){
-if(j==1){
-  neighborsAndMe <- state[c(size,i,i+1),c(size,j,j+1)] 
-}
-if(j==size){
-  neighborsAndMe <- state[c(size,i,i+1),c(j-1,j,1)] 
-}
-  neighborsAndMe <- state[c(size,i,i+1),c(j-1,j,j+1)] 
-}
-
-if (i==size){
-if(j==1){
- neighborsAndMe<- state[c(i-1,i,1),c(size,j, j+1)]
+meAndMyNeighbors <- function (i,j) {
+  # corners 
+  if (j==1 & i==1 ){
+    return(state[c(i, i + 1), c(j, j + 1)])
+  } 
+  if (j==size & i ==size){
+    return(state[c(i-1, i), c(j-1, j)])
+  } 
+  if(i==size & j==1) {
+    return(state[c(i-1, i ), c(j, j + 1)])
   }
-if(j==size){
-  neighborsAndMe <-state[c(i-1,i,1),c(j-1,j,1)]
-}
-  neighborsAndMe <-state[c(i-1,i,1),c(j-1,j,j+1)]
-}
-
-
-
-#regular cell case
-neighborsAndMe <- state[c(i-1,i,i+1),c(j-1,j,j+1)] 
-# flatten the 3x3 matrix
-nieghborhood <- as.vector(neighborsAndMe)
-#remove middle term (the caller cell i,j )
-neighborhood <- neighborhood[-5]
-
-
-getNeighbors <- function (i,j) {
-
-  (0 %% 100)
+  if(i==1 & j==size){
+    return(state[c(i, i + 1), c(j-1, j)])
   }
+  
+  #borders without corners
+  if (i==1 &  j > 1 & j < size) {
+    return(state[c(i, i + 1), c(j-1,j, j+1)])
+  }
+  if(i==size & j >1 & j < size ){
+    return(state[c(i-1, i), c(j-1,j, j+1)])
+  }
+  if(j==1 & i >1 & i < size){
+    return(state[c(i-1, i, i+1), c(j, j+1)])
+  }
+  if(j==size & i >1 & i < size){
+    return(state[c(i-1, i, i+1), c(j-1, j)])
+  }
+  #regular cell case
+  if (i > 1 & i < size & j > 1 & j < size){
+    return(state[c(i-1,i,i+1),c(j-1,j,j+1)])
+  }
+}
+
+getneighbors <- function(i,j){
+  neighborhood <- meAndMyNeighbors(i,j)
+  # flatten the 3x3 matrix as a list
+  neighborhood <- as.vector(neighborsAndMe)
+  #remove middle term (i.e. myself, the caller cell i,j )
+  neighborhood <- neighborhood[-5]
+  return(neighborhood)
+}
+
+
+
 ```
 
 
+
+### Evaluating cells "happiness"
+
+Now we need to evaluate if the householder of a cell (i,j) is satisfied by its neighborhood , i.e. if the proportion of similar householders around him is  above the `tolerance` threshold.
+
+
+````{r happiness}
+tolerance <-0.3  
+
+isHappy? <- function(i,j){
+  neigh <- getneighbors(i,j)
+  cell <-  state[i,j]
+  numberOfSimilar <-sum(cell==neigh, na.rm = T)  
+  happy <-  numberOfSimilar / length(neigh) > tolerance
+  return(happy)  
+} 
+```
+
+
+### Getting empty cells
+
+Unsatisfied householders look for empty cells to relocate.
+In our model 
 
 
 
