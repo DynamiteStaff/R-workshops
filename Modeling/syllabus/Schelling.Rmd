@@ -36,15 +36,17 @@ Household groups are then determined randomly :  the cell value is chosen betwee
 
 
 ```{r setupState}
-size <- 10
-pctOccupied <- 0.5
-pctRed <- 0.5
-pctBlue <- (1-pctRed)
+
+
+createSchellingState <-  function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pctRed ){
 
 state <- matrix(NA,size,size)
 nbAgents <- floor(pctOccupied * size^2)
 householdCells <- sample(size ^ 2, nbAgents)
 state[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
+return(state)
+}
+state <-  createSchellingState(40,0.5,0.5, 0.5)
 ```
 
 
@@ -53,18 +55,18 @@ Now that the sate has been defined, we will code the `display` function, to actu
 
 ##Display
 
-Display uses the **ggplot** library, a wierd and fucked-up piece of software, with so fancy graphic renderings it seems impossible not to use it.
+Display uses the **ggplot** library, a wierd yet widely used library, with so fancy graphic renderings it seems impossible not to use it.
 For the record, we give the non-ggplot version first, using the `image` function. 
 
 N.B. matrix plot is counter-clockwise rotated by an angle of pi/2 ; here we don't care as there is no orientation problems in this theoretic example. 
 This is because, by convention, we "naturally" draw *rows* of a matrix along what would be the Y-axis of a plot. 
 According to the documentation : 
-> `image` interpret matrix as a table of f(x[i], y[j]) values, so that the x axis corresponds to row number and the y axis to >column number, with column 1 at the bottom, i.e. a 90 degree counter-clockwise rotation of the conventional printed layout of a matrix.
+>  `image` interpret matrix as a table of f(x[i], y[j]) values, so that the x axis corresponds to row number and the y axis to >column number, with column 1 at the bottom, i.e. a 90 degree counter-clockwise rotation of the conventional printed layout of a matrix.
 
 (the same phenomenon occurs with ggplot2 )
 
 
-```{r displaySimple,fig.height=6, fig.width=6}
+```{r displaySimple,eval=FALSE,fig.height=6, fig.width=6}
 par(fin=c(6,6)) #plot size setup
 image(state, axes = FALSE,col=c("red","blue"))
 ```
@@ -94,7 +96,7 @@ Starting from a matrix structure, this transformation is done by the `melt` func
 
 ```{r meltGGplot}
 library(reshape2)
-meltedState <- melt(state) 
+meltedState <- melt(state, varnames = c("X","Y")) 
 head(meltedState,10)  #to see what it looks like and get the column names
 ```
 
@@ -105,11 +107,12 @@ library(ggplot2)
 # color definitions  
 colorMapping <- c("1"="red", "2"="blue") 
 
-myggplot <- ggplot(meltedState, aes(x=Var1, y=Var2)) +
+myggplot <- ggplot(meltedState, aes(x=X, y=Y)) +
   geom_raster(aes(fill=factor(value)))+
  scale_fill_manual(values = colorMapping, na.value="lightgrey")+
   theme_void()
-myggplot            
+myggplot 
+
 
 ```
 
@@ -124,7 +127,7 @@ library(RColorBrewer)
 # declaration of colors by name
 fancyColors <- c("1"="bisque", "2"="aquamarine") 
 
-myggplot2 <- ggplot(meltedState, aes(x=Var1, y=Var2)) +
+myggplot2 <- ggplot(meltedState, aes(x=X, y=Y)) +
   geom_point(size=1, aes(colour=factor(value)))+ #size has to be adjusted regarding the size of the state
  scale_color_manual( values=fancyColors, name="Group" )+
   theme_void()+
@@ -133,6 +136,21 @@ myggplot2 <- ggplot(meltedState, aes(x=Var1, y=Var2)) +
    
 myggplot2            
 
+#save as a function for later use
+displayState <- function(meltedState, dotSize=1){
+  
+  
+  myggplot2 <- ggplot(meltedState, aes(x=X, y=Y)) +
+  geom_point(size=dotSize, aes(colour=factor(value)))+ #size has to be adjusted regarding the size of the state
+ scale_color_manual( values=fancyColors, name="Group" )+
+  theme_void()+
+  coord_fixed(ratio = 1) + 
+  ggtitle("Schelling state")
+  return(myggplot2) 
+}
+
+
+
 
 ```
 
@@ -140,7 +158,8 @@ myggplot2
 
 ## Dynamics
 
-Each household "aims"" at finding a location where the proportion of similar households in the neighborhood (surrounding cells) is above a certain `tolerance` threshold.
+Each household "aims"" at finding a location where the proportion of similar households in the neighborhood (surrounding cells) is above a certain `tolerance` threshold. 
+If a household is 
    
  At each simulation step, each agent :
  
@@ -149,9 +168,11 @@ Each household "aims"" at finding a location where the proportion of similar hou
  
  
  To achieve this beahavior , we need a way to figure out :
- - the neighborhood af a householder
- - where are the empty cells of the grid
- - where are the adequate cells for each group are (i.e. whose neighborhood proportion of same group is below the tolerance threshold)
+
+* the neighborhood af a householder
+* evaluate householder "happiness" i.e. if the neighborhood fits the tolerance criterion.
+* locations of  the empty cells of the grid
+* locations of the adequate cells for each group are (i.e. whose neighborhood proportion of same group is below the tolerance threshold)
 
 
 ### Getting the neighborhood
@@ -165,8 +186,10 @@ The `getgetneighbors(i,j)` transforms this portion in a more convenient format (
 Special cases of corner and border cells are considered having incomplete neighborhood.
 
 ```{r neighbors}
-meAndMyNeighbors <- function (i,j) {
-  # corners 
+meAndMyNeighbors <- function (state,i,j) {
+#we assume world is square for now
+    size <-  nrow(state)  
+    # corners 
   if (j==1 & i==1 ){
     return(state[c(i, i + 1), c(j, j + 1)])
   } 
@@ -188,7 +211,7 @@ meAndMyNeighbors <- function (i,j) {
     return(state[c(i-1, i), c(j-1,j, j+1)])
   }
   if(j==1 & i >1 & i < size){
-    return(state[c(i-1, i, i+1), c(j, j+1)])
+        return(state[c(i-1, i, i+1), c(j, j+1)])
   }
   if(j==size & i >1 & i < size){
     return(state[c(i-1, i, i+1), c(j-1, j)])
@@ -199,12 +222,10 @@ meAndMyNeighbors <- function (i,j) {
   }
 }
 
-getneighbors <- function(i,j){
-  neighborhood <- meAndMyNeighbors(i,j)
-  # flatten the 3x3 matrix as a list
-  neighborhood <- as.vector(neighborsAndMe)
-  #remove middle term (i.e. myself, the caller cell i,j )
-  neighborhood <- neighborhood[-5]
+getneighbors <- function(state, i,j){
+    neighborhood <- meAndMyNeighbors(state, i, j)
+        # flatten the 3xn matrix as a list
+    neighborhood <- as.vector(neighborhood)
   return(neighborhood)
 }
 
@@ -220,23 +241,91 @@ Now we need to evaluate if the householder of a cell (i,j) is satisfied by its n
 
 
 ````{r happiness}
-tolerance <-0.3  
+tolerance <- 0.3  
 
-isHappy? <- function(i,j){
-  neigh <- getneighbors(i,j)
+
+isHappy <- function(state, i , j){
   cell <-  state[i,j]
+  if (is.na(cell)){return(NA)}
+  neigh <- getneighbors(state,i,j)
   numberOfSimilar <-sum(cell==neigh, na.rm = T)  
-  happy <-  numberOfSimilar / length(neigh) > tolerance
+  happy <-  numberOfSimilar / (length(neigh) ) > tolerance
   return(happy)  
 } 
 ```
+
+To test the function, we have to apply it to each cell of the matrix.
+This will be more convenient if we use the melted state, where coordinates are immediately available for each cell.
+
+``` {r testhappiness}
+library(dplyr)
+
+testEnv <-  createSchellingState(10,pctOccupied = 0.8)
+
+
+
+# we use melted state for immediatley accessible coordinates
+meltTestEnv <-  melt(testEnv,varnames = c("X","Y"))
+displayState(meltTestEnv, dotSize = 5)
+#handy rowwise operator form dplyr
+meltTestEnv <-  meltTestEnv %>% rowwise() %>% mutate(happy= isHappy(state = testEnv,X,Y))
+
+# we update the display function code
+displayStateUnhappy <- function(meltedState){
+  pp <- displayState(meltTestEnv, dotSize = 5) + 
+    geom_text(data = subset(meltTestEnv, !happy ), aes(X,Y,label = ":-|"), angle=-90)  
+return(pp)
+  }
+
+
+# save a function for later
+getUnhappy <-  function(meltedState){
+  return(subset(meltedState, !happy))
+}
+
+``` 
+
 
 
 ### Getting empty cells
 
 Unsatisfied householders look for empty cells to relocate.
-In our model 
+In our model, empty cells have a `NA`value.
+We will create and maintain a subset of our meltedState, keeping track of the empty cells.
+We use a function that filter the values of the melted state.
 
+```{r }
+getEmptyCells <-  function(meltedState){
+  return(meltedState %>%filter(is.na(value))  )
+}
+empty <-  getEmptyCells(meltTestEnv)
+
+#we add a symbol layer  to check emptyness visually
+pp <-  displayStateUnhappy(meltTestEnv) +
+  geom_text(data = subset(meltTestEnv, is.na(value) ), aes(X,Y,label = sprintf("\U2205")), angle=-90)  
+pp
+
+```
+
+
+### Moving to more satisfying locations
+
+The idea is now to move unhappy households to another, empty location :
+
+```{r move}
+
+
+unhappy <-  getUnhappy(meltTestEnv)
+numberOfEmpty <-  nrow(getEmptyCells(meltTestEnv))
+cat(numberOfEmpty) # has to be 20% of size squared, every time
+
+
+
+
+
+
+
+```
 
 
 
