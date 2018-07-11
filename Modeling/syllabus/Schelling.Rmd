@@ -3,6 +3,7 @@ title: "Schelling"
 author: "CC&PC"
 date: "Summer School"
 output: html_document
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -137,10 +138,8 @@ myggplot2 <- ggplot(meltedState, aes(x=X, y=Y)) +
 myggplot2            
 
 #save as a function for later use
-displayState <- function(meltedState, dotSize=1){
-  
-  
-  myggplot2 <- ggplot(meltedState, aes(x=X, y=Y)) +
+displayState <- function(mystate, dotSize=1){
+ myggplot2 <- ggplot(mystate, aes(x=X, y=Y)) +
   geom_point(size=dotSize, aes(colour=factor(value)))+ #size has to be adjusted regarding the size of the state
  scale_color_manual( values=fancyColors, name="Group" )+
   theme_void()+
@@ -244,7 +243,7 @@ Now we need to evaluate if the householder of a cell (i,j) is satisfied by its n
 tolerance <- 0.3  
 
 
-isHappy <- function(state, i , j){
+isHappy <- function(state, i , j, tolerance){
   cell <-  state[i,j]
   if (is.na(cell)){return(NA)}
   neigh <- getneighbors(state,i,j)
@@ -268,20 +267,33 @@ testEnv <-  createSchellingState(10,pctOccupied = 0.8)
 meltTestEnv <-  melt(testEnv,varnames = c("X","Y"))
 displayState(meltTestEnv, dotSize = 5)
 #handy rowwise operator form dplyr
-meltTestEnv <-  meltTestEnv %>% rowwise() %>% mutate(happy= isHappy(state = testEnv,X,Y))
+meltTestEnv <-  meltTestEnv %>% rowwise() %>% mutate(happy= isHappy(state = testEnv,X,Y,0.3))
 
 # we update the display function code
 displayStateUnhappy <- function(meltedState){
   pp <- displayState(meltTestEnv, dotSize = 5) + 
-    geom_text(data = subset(meltTestEnv, !happy ), aes(X,Y,label = ":-|"), angle=-90)  
+    geom_text(data = subset(meltTestEnv, !happy ), aes(X,Y,label = ":-|"), angle=-90) 
 return(pp)
   }
 
 
-# save a function for later
+
+# save as function for later
 getUnhappy <-  function(meltedState){
   return(subset(meltedState, !happy))
 }
+
+createMeltedSchellingState <- function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pctRed, tolerance){
+  matState <-  createSchellingState(size, pctOccupied, pctRed, pctBlue)
+  meltedState <-  melt(matState,varnames = c("X","Y"))
+  meltedState <-  meltedState %>% rowwise() %>% mutate(happy= isHappy(state = matState,X,Y, tolerance ))
+  # we add an explicit ID of cells (row number), it will be useful
+  meltedState$ID <- seq.int(nrow(meltedState))
+  return(meltedState)
+}
+
+
+
 
 ``` 
 
@@ -298,29 +310,120 @@ We use a function that filter the values of the melted state.
 getEmptyCells <-  function(meltedState){
   return(meltedState %>%filter(is.na(value))  )
 }
-empty <-  getEmptyCells(meltTestEnv)
+emptyCells <-  getEmptyCells(meltTestEnv)
 
 #we add a symbol layer  to check emptyness visually
 pp <-  displayStateUnhappy(meltTestEnv) +
   geom_text(data = subset(meltTestEnv, is.na(value) ), aes(X,Y,label = sprintf("\U2205")), angle=-90)  
 pp
 
+
+#we update the function 
+
+displayStateUnhappy <- function(mystate) {
+  pp <- displayState(mystate , dotSize = 5) +
+  geom_text(data = subset(mystate,!happy),  aes(X, Y, label = ":-|"),   angle = -90) +
+  
+  geom_text(  data = subset(mystate, is.na(value)),   aes(X, Y, label = sprintf("\U2205")),   angle = -90)
+  
+  return(pp)
+}
+
+
 ```
 
 
 ### Moving to more satisfying locations
 
-The idea is now to move unhappy households to another, empty location :
+The idea is now to move unhappy households to another, empty location . 
+For each householder, an empty location/cell is randomly drawn, and the householder establish itself in it .
+
+To do that, we sample among empty cells, update these empty cells values according to unhappy householders values, and put the previous unhappy householders cells to`NA` (i.e. empty)
+
+
 
 ```{r move}
 
+stateEnv <- createMeltedSchellingState(10,pctOccupied = 0.8, tolerance=0.3)
 
-unhappy <-  getUnhappy(meltTestEnv)
-numberOfEmpty <-  nrow(getEmptyCells(meltTestEnv))
-cat(numberOfEmpty) # has to be 20% of size squared, every time
+unhappy <-  getUnhappy(stateEnv)
+numberOfUnHappy <-  nrow(unhappy)
+emptyCells <-  getEmptyCells(stateEnv)
+numberOfEmpty <-  nrow(getEmptyCells(stateEnv))
+cat(numberOfEmpty , "\n") # has to be 20% since pctOccupied is 0.8 of size squared
 
 
+# if there is more empty room than unhappy, we can move everyone in a single loop 
+if (numberOfEmpty > numberOfUnHappy){
 
+    futureOccupiedCells <-  sample_n(emptyCells, numberOfUnHappy)
+    
+    #when household settle , values are updated
+    futureOccupiedCells$value <-  unhappy$value
+    
+    #newly occupied cells values are no longer NA , but the values of unhappyhouseholders
+    stateEnv[futureOccupiedCells$ID,"value"] <-  futureOccupiedCells$value
+    #previously occupied cells are set to empty
+    stateEnv[unhappy$ID, "value"] <- NA 
+}
+
+# if there is more unhappy than empty cells, we can only move a subset of unhappy householders to empty locations
+#code looks similar, notice the replacement of unhappy by a subset : futureMovers
+if (numberOfEmpty < numberOfUnHappy){
+  
+    futureMovers <-  sample_n(unhappy, numberOfEmpty)
+     futureOccupiedCells <-  emptyCells
+    #when household settle , values are updated
+    futureOccupiedCells$value <-  futureMovers$value
+                                           
+                                           
+    #newly occupied cells values are no longer NA , but the values of unhappyhouseholders
+    stateEnv[futureOccupiedCells$ID,"value"] <-  futureOccupiedCells$value
+    #previously occupied cells are set to empty
+    stateEnv[futureMovers$ID, "value"] <- NA 
+  }
+
+
+```
+
+
+## Simulation Loop
+
+Now that we have implemented one step of the model Dynamic , we can automate its execution in a loop, create some buttons and animate it in a `shiny`app (its a specific library that conveniently handles Graphical User Interface stuff)
+
+Before we do that, we add the last lines of code in a function, 
+
+```{r loopsimu}
+
+step <- function(meltedState){
+  unhappy <-  getUnhappy(meltedState)
+  numberOfUnHappy <-  nrow(unhappy)
+  emptyCells <-  getEmptyCells(meltedState)
+  numberOfEmpty <-  nrow(getEmptyCells(meltedState))
+if (numberOfEmpty >= numberOfUnHappy){
+    futureOccupiedCells <-  sample_n(emptyCells, numberOfUnHappy)
+    futureOccupiedCells$value <-  unhappy$value
+    meltedState[futureOccupiedCells$ID,"value"] <-  futureOccupiedCells$value
+    meltedState[unhappy$ID, "value"] <- NA 
+}
+
+if (numberOfEmpty < numberOfUnHappy){
+    futureMovers <-  sample_n(unhappy, numberOfEmpty)
+     futureOccupiedCells <-  emptyCells
+    futureOccupiedCells$value <-  futureMovers$value
+    meltedState[futureOccupiedCells$ID,"value"] <-  futureOccupiedCells$value
+    meltedState[futureMovers$ID, "value"] <- NA 
+}
+  return(meltedState)
+}
+
+
+simulate <-  function(steps, state){
+  for (i in 1:steps){
+    state <-  step(state)
+    
+  }
+}
 
 
 
@@ -329,6 +432,35 @@ cat(numberOfEmpty) # has to be 20% of size squared, every time
 
 
 
+Basically a simulation loop is a loop that repeat a simulation step a certain number of times or until a certain condition is reached.
 
 
- 
+```{r, echo=FALSE}
+library(shiny)
+shinyApp(
+  ui = fluidPage(
+     actionButton("go", "Go"),
+   plotOutput("plot")
+    
+  ),
+
+  server = function(input, output) {
+  
+    state <-createMeltedSchellingState(20, 0.8, 0.5, 0.5,0.3)  
+    
+  currentState <- eventReactive(input$go, {
+    step(state)
+  })
+
+  output$plot <- renderPlot({
+    currentplot <-  displayStateUnhappy(currentState())
+    currentplot
+  })  }
+  ,
+   options = list(height = 500)
+ )
+```
+
+
+
+
