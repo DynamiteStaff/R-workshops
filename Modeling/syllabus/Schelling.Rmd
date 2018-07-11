@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Schelling Segragation Model
+## Schelling Segregation Model
 
 Here are some code lines to prepare the simulation of Schelling's Model of spatial segregation.
 We start by the environment.

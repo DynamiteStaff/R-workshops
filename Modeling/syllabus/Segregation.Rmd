@@ -1,0 +1,102 @@
+---
+title: "Modelling"
+author: "CC&PC"
+date: "Summer School"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Why model?
+
+C. Anderson provokingly in the magazine Wired: 
+
+> THE END OF THEORY: THE DATA DELUGE MAKES THE SCIENTIFIC METHOD OBSOLETE". 
+
+J. Epstein (2008, JASSS): 'Why model?'
+
+* Explain (very distinct from predict)
+* Guide data collection
+* Illuminate core dynamics
+* Suggest dynamical analogies
+* Discover new questions
+* Promote a scientific habit of mind
+* Bound (bracket) outcomes to plausible ranges
+* Illuminate core uncertainties.
+* Offer crisis options in near-real time
+* Demonstrate tradeoffs / suggest efficiencies
+* Challenge the robustness of prevailing theory through perturbations
+* Expose prevailing wisdom as incompatible with available data
+* Train practitioners
+* Discipline the policy dialogue
+* Educate the general public
+* Reveal the apparently simple (complex) to be complex (simple)
+
+A model is a simplified representation/abstraction of a target system, which implements some theoretical propositions about the logical linkages between objects of interest.
+
+In this tutorial, two kinds of models are presented: 
+
+* descriptive models (statistics)
+* genrative models (ABM)
+
+More generally, we want to show how the two shed complementary lights on spatial problems and how they interact with the new massive data.
+
+### Case study: urban segregation
+
+Let's use the information theory to qualify *diversity* and *segregation* of a given city (cf. John Iceland et al on multigroup entropy: https://www.census.gov/hhes/www/housing/resseg/multigroup_entropy.pdf). The measure have been implemented are described below and tested on Canadian metropolisis from package `cancensus` (example by @dshkol: https://github.com/dshkol/scratchpad/blob/master/content/post/2018-05-10-diversity-and-segregation-i.Rmd).
+
+
+#### Diversity
+```{r diversity}
+
+diversity_csd <- function(cma) {
+  cma.csd <- get_census("CA16", regions=list(CMA=cma), 
+                        vectors = minority_vectors, level = "CSD",
+                        labels = "short", geo_format = NA)
+  
+  # Calculating diversity (Theil's E)
+  # For every variable, divide by v_CA16_3999 and multiply times the logged inverse proportion, then
+  # take the sum for each tract. With 14 different groups, the max entropy is ln(14) = 2.64
+  base_pop <- quo(v_CA16_3954)
+  cma.eicsd <- cma.csd %>% 
+    group_by(GeoUID,`Region Name`, Population) %>% 
+    mutate_at(minorities, funs(E = (./!!(base_pop))*(log(!!(base_pop)/.)))) %>%
+    select(GeoUID, `Region Name`, Population, ends_with("_E")) %>% 
+    ungroup() %>% 
+    mutate_at(vars(ends_with("_E")), funs(ifelse(is.nan(.),0,.))) %>% 
+    mutate(Ei = rowSums(select(.,-c(1,2,3)), na.rm = FALSE)) %>% 
+    mutate(CMA = cma) %>% 
+    select(CMA, GeoUID, `Region Name`, Population, Ei)
+  return(cma.eicsd)
+}
+```
+
+#### Segregation
+
+```{r segregation}
+
+calc_h <- function(cma_obj) {
+  cth <- cma_obj$ct %>% 
+    select(GeoUID, CSD_UID, Population, Ei)
+  st_geometry(cth) <- NULL
+  
+  cth <- cth %>%
+    left_join(cma_obj$csd, by = c("CSD_UID"="GeoUID")) %>%
+    select(GeoUID, CSD_UID, name, ctpop = Population.x,
+           csdpop = Population.y, ctei = Ei.x, csdei = Ei.y) %>%
+    group_by(GeoUID, CSD_UID) %>%
+    filter(csdpop > 1000) %>%
+    mutate(smallh = (ctpop*(csdei - ctei))/(csdei*csdpop)) %>%
+    ungroup()
+
+  csdh <- cth %>%
+    group_by(CSD_UID, csdei) %>%
+    summarise(H = sum(smallh, na.rm = TRUE)) %>% 
+    right_join(cma_obj$csd,by = c("CSD_UID"="GeoUID"))
+  
+  return(csdh)
+}
+```
+
