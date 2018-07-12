@@ -271,8 +271,8 @@ meltTestEnv <-  meltTestEnv %>% rowwise() %>% mutate(happy= isHappy(state = test
 
 # we update the display function code
 displayStateUnhappy <- function(meltedState){
-  pp <- displayState(meltTestEnv, dotSize = 5) + 
-    geom_text(data = subset(meltTestEnv, !happy ), aes(X,Y,label = ":-|"), angle=-90) 
+  pp <- displayState(meltedState, dotSize = 5) + 
+    geom_text(data = subset(meltedState, !happy ), aes(X,Y,label = ":-|"), angle=-90) 
 return(pp)
   }
 
