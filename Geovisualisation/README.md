@@ -24,7 +24,7 @@ Kim Antunez et Timothée Giraud
  
 * *[sélection de flux, dominants / dominés avec flows : ne s’adapte pas pour le moment à nos données]* 
 
-* **[4. Ouverture : Représenter les données géographiques au-delà des cartes]** *
+* * **[4. Ouverture : Représenter les données géographiques au-delà des cartes]** *
 
 ## Liens utiles 
 
@@ -48,7 +48,7 @@ Kim Antunez et Timothée Giraud
 
 Il est proposé pour le TP de se focaliser sur le département de la Haute-Garonne (31) dont la préfecture est Toulouse (analyser les bars et restaurants en prévision de userR2019 !).
 
-Les données utilisées sont rangées dans [data/hautegaronne_sirene](lien).
+Les données utilisées sont rangées dans [data/hautegaronne_sirene](./data/hautegaronne_sirene).
 
 
 #### Liste des variables utiles
@@ -124,7 +124,7 @@ Cette variable est systématiquement renseignée. Si une entreprise n'a qu'un seul
 
 **inconvénients** : peu d'information à part qu'il s'agit d'un restaurant et son nom
 
-Les données utilisées sont rangées dans [data/louisville](data/louisville).
+Les données utilisées sont rangées dans [data/louisville](./data/louisville).
 
 
 #### Liste des variables utiles
@@ -167,7 +167,7 @@ L'utilisation gratuite de l'API limite l'utilisation à 1000 requête par jour et 
 **inconvénients** : requêtage obligatoire et limité par google
 
 
-Les données utilisées sont rangées dans [data/toulouse_googleplace](/data/toulouse_googleplace).
+Les données utilisées sont rangées dans [data/toulouse_googleplace](./data/toulouse_googleplace).
 
 #### Liste des variables utiles
 * geometry.location.lat : latitude
