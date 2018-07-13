@@ -5,12 +5,12 @@ Kim Antunez et Timothée Giraud
 ## Contenu prévisionnel de la séance 
 
 **1. Agrégation spatiale**
-
+ 
 * Agréger des bases de données disponibles à un niveau géographique « fin » en un ou différents niveaux supra-communaux et illustrer ainsi l’effet MAUP
 
 * Réaliser le même type de traitement sur des couches carto et données spatiales (sf)
  
-**2. Cartes « classiques » sous R **
+**2. Cartes « classiques » sous R**
 
 *  Cartes en statique avec quelques exemples sur cartography et/ou ggplot2 : choroplètes, ronds proportionnels (éventuellement discontinuités)
 
@@ -24,7 +24,7 @@ Kim Antunez et Timothée Giraud
  
 * *[sélection de flux, dominants / dominés avec flows : ne s’adapte pas pour le moment à nos données]* 
 
-** *[4. Ouverture : Représenter les données géographiques au-delà des cartes]* **
+* **[4. Ouverture : Représenter les données géographiques au-delà des cartes]** *
 
 ## Liens utiles 
 
@@ -124,16 +124,16 @@ Cette variable est systématiquement renseignée. Si une entreprise n'a qu'un seul
 
 **inconvénients** : peu d'information à part qu'il s'agit d'un restaurant et son nom
 
-Les données utilisées sont rangées dans [data/louisville](lien).
+Les données utilisées sont rangées dans [data/louisville](data/louisville).
 
 
 #### Liste des variables utiles
 
-**1. PremiseName : Nom de l'établissement **
+**1. PremiseName : Nom de l'établissement**
 
 Exemple : JERRY'S RESTAURANT
 
-**2. Est-Type : Type d'établissement **
+**2. Est-Type : Type d'établissement**
 
 Ne sélectionner que les food service
 
@@ -167,7 +167,7 @@ L'utilisation gratuite de l'API limite l'utilisation à 1000 requête par jour et 
 **inconvénients** : requêtage obligatoire et limité par google
 
 
-Les données utilisées sont rangées dans [data/toulouse_googleplace](lien).
+Les données utilisées sont rangées dans [data/toulouse_googleplace](/data/toulouse_googleplace).
 
 #### Liste des variables utiles
 * geometry.location.lat : latitude
@@ -180,9 +180,7 @@ Les données utilisées sont rangées dans [data/toulouse_googleplace](lien).
 
 ### D. OpenStreetMap
 
-
-
-<span style="color:red"> **TIMOTHEE**</span>
+**TODO TIMOTHEE**
 
 ## Fonds de cartes mobilisés
 
@@ -190,5 +188,5 @@ Les données utilisées sont rangées dans [data/toulouse_googleplace](lien).
 
 > Il s'agit du contour des 35 000 communes Françaises au 01/01/2017
 
-Les couches cartographiques sont rangées dans [data/carto](lien).
+Les couches cartographiques sont rangées dans [data/carto](./data/carto).
 
