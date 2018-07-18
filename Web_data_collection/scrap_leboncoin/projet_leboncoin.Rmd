@@ -1,0 +1,155 @@
+---
+title: "Scraping leboncoin"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r, message=FALSE}
+library(rvest)
+library(tidyverse)
+library(knitr)
+```
+
+# Scrape all ads in the real estate category in leboncoin
+
+... for now, just for 1 department: Rhône.
+
+## Get links to all ads
+
+Get the total number of ads and deduce the number of pages to scrape (35 ads are displayed per page).
+
+```{r}
+page_base <- "https://www.leboncoin.fr/ventes_immobilieres/offres/rhone_alpes/rhone/"
+
+nb_links <- read_html(page_base) %>% 
+  html_nodes("._2ilNG") %>%
+  html_text() %>% 
+  first() %>% 
+  str_replace(" ","") %>% 
+  as.numeric()
+nb_pages=ceiling(nb_links/35)
+
+
+pages=c(page_base,
+        str_c(page_base,"p-",2:nb_pages))
+pages[1:5]
+```
+Now we have the urls of all the pages we have to scrape to get links to all ads (vector `pages`).
+
+## For each page, get link to individual ads
+
+Definition of function `ads_by_page()` which takes a **page listing ads as an input and returns **all ads' urls** as output.
+
+```{r ads_by_page}
+ads_by_page <- function(page){
+  my_html <- read_html(
+    curl::curl(page,
+               handle=curl::new_handle("useragent"="Mozilla/5.0"))
+  )
+  links <- my_html %>%
+      html_nodes(".clearfix") %>% 
+      html_attr("href") %>% 
+      na.omit()  
+  tib <- tibble(urls=str_c("https://www.leboncoin.fr",links)) 
+  return(tib)
+}  
+ads_by_page(pages[1])
+```
+Now **apply iteratively function `ads_by_page()` to all pages' urls listed in `pages`.
+
+```{r tib_ads_urls}
+if(!file.exists("data/tib_ads_urls.csv")){
+    tib_ads_urls <- map(pages,safely(ads_by_page)) %>%
+      map("result") %>% 
+      bind_rows()
+    write_csv(tib_ads_urls,"data/tib_ads_urls.csv")
+}
+tib_ads_urls=read_csv("data/tib_ads_urls.csv")
+```
+## For each ad, get info
+
+Define function `ad_info()`, which takes **an ad's url** as an input and returns, as an output, a **tibble** with information regarding
+
+- `url`: the ads' urls
+- `header`: their headers,
+- `date`: the date they were published
+- `type`: the type of property
+- `surface`: the surface of the property
+- `rooms`: the number of rooms
+- `GHG`: Greenhouse gas emission category
+- `energy_class`: Energy class category,
+- `location`: Location of the property
+
+I added some **random waiting time** to each call to `ad_info()` of 0 to 1 second.
+
+```{r ad_info}
+ad_info=function(ad){
+    Sys.sleep(0.5+runif(1,-0.5,0.5))
+    html_ad <- read_html(ad)
+    header <- html_ad %>% 
+      html_nodes("._1KQme") %>% 
+      html_text()
+    date <- html_ad %>% 
+      html_nodes("._3Pad-") %>% 
+      html_text()
+    criteria <- 
+      tibble(name= html_ad %>% html_nodes("._3-hZF") %>% html_text(),
+             value=html_ad %>% html_nodes("._3Jxf3") %>% html_text()) 
+    f=function(x){if(length(x)==0){x=NA};return(x)}
+    type    <- filter(criteria, name=="Type de bien")$value %>% f()
+    surface <- filter(criteria, name=="Surface")$value %>%
+      str_extract("^\\d*") %>% f()
+    rooms   <- filter(criteria, str_detect(name,"Pi.ces"))$value %>% 
+      as.numeric() %>% f()
+   
+    price <- html_ad %>% 
+      html_nodes(".eVLNz") %>% 
+      html_text() %>% 
+      str_replace_all("[^0-9]","") %>% 
+      as.numeric()
+    GHG <- html_ad %>% 
+      html_nodes("._2BhIP") %>% 
+      html_text() %>% 
+      first()
+    energy_class <-html_ad %>% 
+      html_nodes("._15MMC") %>% 
+      html_text() %>% 
+      first()
+    location <- html_ad %>% 
+      html_nodes("._1aCZv") %>% 
+      html_text() %>% 
+      str_replace("Voir sur la carte","")
+    tib_ad=bind_cols(urls=ad,
+                     header=header,
+                     date=date,
+                     type=type,
+                     surface=surface,
+                     rooms=rooms,
+                     GHG=GHG,
+                     energy_class=energy_class,
+                     location=location)
+    return(tib_ad)
+}
+ad_info(tib_ads_urls$urls[1]) %>% kable()
+```
+
+Now **apply iteratively this function `ad_info()`** to all ads in `tib_ads_urls`, using `purrr` iteration:
+
+```{r tib_ads}
+if(!file.exists("data/tib_ads.csv")){
+  tmp=Sys.time()
+   tib_ads <- map(tib_ads_urls$urls, safely(ad_info)) %>% 
+     map("result") %>% bind_rows()
+  Sys.time()-tmp
+   write_csv(tib_ads,"data/tib_ads.csv")
+}
+tib_ads <- read_csv("data/tib_ads.csv")
+tib_ads %>% kable()
+```
+
+For ~16000 ads, it took about 4 hours for this chunk to run on my computer...
+
+
