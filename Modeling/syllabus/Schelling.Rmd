@@ -57,23 +57,8 @@ Now that the sate has been defined, we will code the `display` function, to actu
 ##Display
 
 Display uses the **ggplot** library, a wierd yet widely used library, with so fancy graphic renderings it seems impossible not to use it.
-For the record, we give the non-ggplot version first, using the `image` function. 
 
-N.B. matrix plot is counter-clockwise rotated by an angle of pi/2 ; here we don't care as there is no orientation problems in this theoretic example. 
-This is because, by convention, we "naturally" draw *rows* of a matrix along what would be the Y-axis of a plot. 
-According to the documentation : 
->  `image` interpret matrix as a table of f(x[i], y[j]) values, so that the x axis corresponds to row number and the y axis to >column number, with column 1 at the bottom, i.e. a 90 degree counter-clockwise rotation of the conventional printed layout of a matrix.
-
-(the same phenomenon occurs with ggplot2 )
-
-
-```{r displaySimple,eval=FALSE,fig.height=6, fig.width=6}
-par(fin=c(6,6)) #plot size setup
-image(matrixState, axes = FALSE,col=c("red","blue"))
-```
-
-
-To obtain the ggplot version , the state data structure has to be tweaked a little bit.
+To that extent, the state data structure has to be tweaked a little bit.
 ggplot2 needs a data structure where each line is  an individual i.e. a piece of data, formed as follows:
 ```
     | Var1 | Var2 |    Var3  |
@@ -235,7 +220,7 @@ getneighbors <- function(mstate, i,j){
 
 ### Evaluating cells "happiness"
 
-Now we need to evaluate if the householder of a cell (i,j) is satisfied by its neighborhood , i.e. if the proportion of similar householders around him is  above the `tolerance` threshold.
+Now we need to evaluate if the householder of a cell (i,j) is satisfied by its neighborhood , i.e. if the proportion of householders of another group  around him is  below the `tolerance` threshold.
 
 
 ````{r happiness}
@@ -246,8 +231,8 @@ isHappy <- function(state, i , j, tolerance){
   cell <-  state[i,j]
   if (is.na(cell)){return(NA)}
   neigh <- getneighbors(state,i,j)
-  numberOfSimilar <-sum(cell==neigh, na.rm = T)  
-  happy <-  numberOfSimilar / (length(neigh) ) > tolerance
+  numberOfDiff <-sum(cell!=neigh, na.rm = T)  
+  happy <-  numberOfDiff / (length(neigh) ) < tolerance
   return(happy)  
 } 
 ```
@@ -258,14 +243,14 @@ We use the melted state, where coordinates are immediately available for each ce
 ``` {r testhappiness}
 library(dplyr)
 
-testEnv <-  createSchellingState(10,pctOccupied = 0.8)
+testEnv <-  matrixSchellingState(10,pctOccupied = 0.8)
 
 # we use melted state for immediatley accessible coordinates
 meltTestEnv <-  melt(testEnv,varnames = c("X","Y"))
 displayState(meltTestEnv, dotSize = 5)
 
 #handy rowwise operator form dplyr
-meltTestEnv <-  meltTestEnv %>% rowwise() %>% mutate(happy= isHappy(state = testEnv,X,Y,0.3))
+meltTestEnv <-  meltTestEnv %>% rowwise() %>% mutate(happy= isHappy(state = testEnv,X,Y,tolerance = 0.3))
 
 
 # we update the display function code
@@ -284,16 +269,19 @@ getUnhappy <-  function(meltedState, tolerance){
 
 updateHappiness <- function(meltedState, tolerance){
   mat <-  attr(meltedState, "matrix")
-  return(meltedState %>% rowwise() %>% mutate(happy= isHappy(mat,X,Y,tolerance)))
+  meltedState <-meltedState %>% rowwise() %>% mutate(happy= isHappy(state = mat,X,Y,tolerance))
 }
 
 createMeltedSchellingState <- function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pctRed, tolerance){
   matState <-  matrixSchellingState(size, pctOccupied, pctRed, pctBlue)
+  # Warning : melt destroy attr
   meltedState <-  melt(matState,varnames = c("X","Y"))
-  meltedState <-  meltedState %>% rowwise() %>% mutate(happy= isHappy(state = matState,X,Y, tolerance ))
+  ### ATTR  disparait a chaque MAJ 
+  attr(meltedState, "matrix") <- matState
+  meltedState <-  updateHappiness(meltedState, tolerance  )
   # we add an explicit ID of cells (row number), it will be useful
   meltedState$ID <- seq.int(nrow(meltedState))
-  attr(meltedState, "matrix") <- matState
+  
   return(meltedState)
 }
 ``` 
@@ -319,14 +307,11 @@ pp <-  displayStateUnhappy(meltTestEnv) +
 pp
 
 
-#we update the function 
+#we update the function to display sad smileys
 
 displayStateUnhappy <- function(mystate) {
   pp <- displayState(mystate , dotSize = 5) +
-  geom_text(data = subset(mystate,!happy),  aes(X, Y, label = ":-|"),   angle = -90) +
-  
-  geom_text(  data = subset(mystate, is.na(value)),   aes(X, Y, label = sprintf("\U2205")),   angle = -90)
-  
+  geom_text(data = subset(mystate,!happy),  aes(X, Y, label = ":-|"),   angle = -90) 
   return(pp)
 }
 ```
@@ -344,7 +329,7 @@ To do that, we sample among empty cells, update these empty cells values accordi
 ```{r move}
 stateEnv <- createMeltedSchellingState(10,pctOccupied = 0.8, tolerance=0.3)
 
-unhappy <-  getUnhappy(stateEnv)
+unhappy <-  getUnhappy(stateEnv, 0.3)
 numberOfUnHappy <-  nrow(unhappy)
 emptyCells <-  getEmptyCells(stateEnv)
 numberOfEmpty <-  nrow(getEmptyCells(stateEnv))
