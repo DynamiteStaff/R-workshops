@@ -41,7 +41,7 @@ Now we have the urls of all the pages we have to scrape to get links to all ads 
 
 ## For each page, get link to individual ads
 
-Definition of function `ads_by_page()` which takes a **page listing ads as an input and returns **all ads' urls** as output.
+Definition of function `ads_by_page()` which takes a **page listing ads as an input and returns all ads' urls** as output.
 
 ```{r ads_by_page}
 ads_by_page <- function(page){
@@ -58,6 +58,7 @@ ads_by_page <- function(page){
 }  
 ads_by_page(pages[1])
 ```
+
 Now **apply iteratively function `ads_by_page()` to all pages' urls listed in `pages`.
 
 ```{r tib_ads_urls}
@@ -69,6 +70,7 @@ if(!file.exists("data/tib_ads_urls.csv")){
 }
 tib_ads_urls=read_csv("data/tib_ads_urls.csv")
 ```
+
 ## For each ad, get info
 
 Define function `ad_info()`, which takes **an ad's url** as an input and returns, as an output, a **tibble** with information regarding
@@ -151,5 +153,3 @@ tib_ads %>% kable()
 ```
 
 For ~16000 ads, it took about 4 hours for this chunk to run on my computer...
-
-

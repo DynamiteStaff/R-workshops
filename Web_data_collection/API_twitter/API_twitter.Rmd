@@ -1,0 +1,213 @@
+---
+title: "Retrieving Twitter data from its API"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+library(rtweet)
+library(tidyverse)
+library(knitr)
+```
+
+# First steps
+
+Throughout this document we'll use the `rtweet` package [(link)](http://rtweet.info/index.html) to retrieve Twitter data from its API. Its use is quite straightforward once the authentication steps are completed...
+
+## App creation 
+
+All instructions on how to set up application and oauth are gathered here: (http://rtweet.info/articles/auth.html)
+
+## authentication
+
+I have stored my secret access info in a git-ignored script...
+
+```{r}
+source("twitter_token_creation.R")
+twitter_token <- create_token(
+    app =my_app ,
+    consumer_key = my_API_key,
+    consumer_secret = my_API_secret,
+    access_token=my_access_token,
+    access_secret=my_access_token_secret
+)
+```
+
+Now we are ready to start gathering twitter info
+
+# Search tweets
+
+We can access tweets published during the last 7 days based on a keywords search (you can find out details about search rules [here](https://twitterdev.github.io/do_more_with_twitter_data/finding_the_right_data.html#finding-the-right-data): 
+
+```{r}
+tib_tweets <- search_tweets("(flat OR house) (sale OR sell OR selling)", n=500)
+dim(tib_tweets)
+```
+
+There are no less than 88 variables related to these tweets.
+
+The number of tweet returned by default is 100...  You can get many more than that if you settle on a broad keywords search... Beware of not exceeding the rate limit, though!
+
+The object returned by `search_tweets()` is actually a *nested* tibble, that allows for multiple information to be stored for *one* tweet (i.e. multiple urls , multiple mentions of Twitter users in a single tweet, etc.): this means that some columns are not *vectors*, but *lists*:
+
+```{r tweets_str}
+str(tib_tweets,max.level=1)
+```
+
+I select some relevant, not-too-sparse variables just to display the kind of data we get out of `search_tweets()`
+
+```{r}
+tib_tweets %>%
+  filter(lang=="en") %>% 
+  select(screen_name,
+         text,
+         created_at,
+         location)
+```
+
+```{r}
+map_lgl(tib_tweets$geo_coords,~is.na(.x[1])) %>% 
+  table()
+```
+
+The tweets are very seldomly located (variable `geo_coords`). On the other hand Twitter accounts often come with some information regarding location:
+
+```{r}
+tib_tweets %>% 
+  select(location) %>% 
+  sample_n(30)
+```
+
+These character strings related to location *might* or *might not* really make sense as geographical data... Anyway we can run some geocoding function to try and make them correspond to geographical coordinates:
+
+
+Here I use Data Science Toolkit ("dsk") as source:
+
+```{r}
+library(ggmap)
+geocode("NY",source="dsk", output="all")
+```
+
+The direct result of a call to function `geocode()` is quite messy so I tailored a function that extracts just the few pieces of information I need as a table:
+
+
+```{r}
+completeWithCoords=function(df){
+  locs=data.frame(location=unique(df$location),
+                  stringsAsFactors=FALSE)
+  locs=locs$location
+  locations=locs %>% 
+    map(safely(geocode),source="dsk", output="all") %>% 
+    map("result") %>% 
+    map("results")
+  coords=locations %>% 
+    map(1) %>% 
+    map("geometry") %>% 
+    map("location") %>% 
+    map(unlist) %>% 
+    map(function(x){if(is.null(x)) x=c(lng=NA,lat=NA) else x=x})
+  coords=do.call(rbind,coords)
+  
+  comp=locations %>% 
+    map(1) %>% 
+    map("address_components") %>% 
+    map(function(x){map(x,safely(as.data.frame),stringsAsFactors=FALSE )}) %>% 
+    map(function(x) map(x,"result")) %>% 
+    map(function(x){do.call(rbind,x)})
+  country=comp %>% 
+    map(safely(function(x){filter(x,types=="country")})) %>% 
+    map("result") %>% 
+    map("long_name") %>% 
+    map(function(x){if(is.null(x)) x=NA else x=x}) %>% 
+    unlist()
+  locality=comp %>% 
+    map(safely(function(x){filter(x,types=="locality")}
+    )) %>% 
+    map("result") %>% 
+    map("short_name") %>% 
+    map(function(x){if(is.null(x)) x=NA else x=x}) %>% 
+    unlist()
+  area=comp %>% 
+    map(safely(function(x){filter(x,types=="administrative_area_level_1")}
+    )) %>% 
+    map("result") %>% 
+    map("short_name") %>% 
+    map(function(x){if(is.null(x)) x=NA else x=x}) %>% 
+    unlist()
+  coords=data.frame(location=locs,
+                    coords,
+                    country,
+                    locality,
+                    area,
+                    stringsAsFactors=FALSE)
+  df=left_join(df,coords,by="location")
+  return(df)
+}
+```
+
+This function takes a table with column `location` and completes it with coordinates (latitude-longitude), country, locality, area.
+
+```{r}
+tib_trial <- tibble(location=c("NY",
+                               "NYC",
+                               "California, baby!",
+                               "Midland, TX",
+                               "Port Harcourt, Nigeria",
+                               "All around the world!",
+                               "Montmartre",
+                               "La butte Montmartre",
+                               "Quartier Latin",
+                               "20 rue Mérieux Lyon"))
+completeWithCoords(tib_trial)
+```
+
+
+# Other types of retrievable info
+
+## Profile info a a particular user, friends and followers
+
+```{r}
+str(lookup_users("realtyWW"))
+```
+
+```{r}
+str(get_followers("realtyWW"))
+```
+```{r}
+str(get_friends("realtyWW"))
+```
+
+## Timelines
+
+We can retrieve the tweets in the timeline of one Twitter-user. In that case the information retrieval is not limited to a certain time-window, but is **limited to a certain number of tweets** of the timeline (up to 3200).
+
+Here we just retrieve 100 (the default number) tweets of user @realtyWW:
+
+```{r}
+timeline <- get_timeline("@realtyWW")
+dim(timeline)
+```
+
+Again, the number of variables is quite **overwhelming**:
+
+```{r}
+str(timeline, max.level=1)
+```
+
+```{r}
+timeline %>% 
+  select(screen_name,
+         text,
+         created_at)
+```
+
+## Trending topics in a certain place
+
+```{r}
+get_trends("Lyon") %>% 
+  kable()
+```
+
+
+
+
