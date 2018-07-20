@@ -28,7 +28,7 @@ Basic Schelling model suggest that agents is randomly affected to one groupe or 
 From the R code point of view, the environment is a matrix, and the state of the system is constituted by the values inside the matrix.
 At a given location (i,j), the value of the cell will be either 0 (empty cell), 1 (Red household), or 2 (Blue houshold).
 
-Cells are intialized with 0 at the creation of the `state` matrix.
+Cells are intialized with 0 at the creation of the `matrixState` matrix.
 Households are randomly allocated in the grid by sampling (without replacement) positions.
 
 Household groups are then determined randomly :  the cell value is chosen between 1 and 2 (this time with replacement)  using `pctRed` and `pctBlue`  as probabilities weights.
@@ -39,15 +39,15 @@ Household groups are then determined randomly :  the cell value is chosen betwee
 ```{r setupState}
 
 
-createSchellingState <-  function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pctRed ){
+matrixSchellingState <-  function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pctRed ){
 
-state <- matrix(NA,size,size)
+matrixState <- matrix(NA,size,size)
 nbAgents <- floor(pctOccupied * size^2)
 householdCells <- sample(size ^ 2, nbAgents)
-state[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
-return(state)
+matrixState[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
+return(matrixState)
 }
-state <-  createSchellingState(40,0.5,0.5, 0.5)
+matrixState <-  matrixSchellingState(40,0.5,0.5, 0.5)
 ```
 
 
@@ -69,7 +69,7 @@ According to the documentation :
 
 ```{r displaySimple,eval=FALSE,fig.height=6, fig.width=6}
 par(fin=c(6,6)) #plot size setup
-image(state, axes = FALSE,col=c("red","blue"))
+image(matrixState, axes = FALSE,col=c("red","blue"))
 ```
 
 
@@ -97,13 +97,13 @@ Starting from a matrix structure, this transformation is done by the `melt` func
 
 ```{r meltGGplot}
 library(reshape2)
-meltedState <- melt(state, varnames = c("X","Y")) 
+meltedState <- melt(matrixState, varnames = c("X","Y")) 
 head(meltedState,10)  #to see what it looks like and get the column names
 ```
 
 
 
-```{r displayGGplot, fig.height=6, fig.width=6}
+```{r displayGGplot, fig.height=6, fig.width=6, warning =FALSE}
 library(ggplot2)
 # color definitions  
 colorMapping <- c("1"="red", "2"="blue") 
@@ -147,15 +147,14 @@ displayState <- function(mystate, dotSize=1){
   ggtitle("Schelling state")
   return(myggplot2) 
 }
-
-
-
-
 ```
 
 
 
 ## Dynamics
+
+
+
 
 Each household "aims"" at finding a location where the proportion of similar households in the neighborhood (surrounding cells) is above a certain `tolerance` threshold. 
 If a household is 
@@ -180,49 +179,49 @@ We will start with the Moore neighborhood (the 8 adjacents cells of a cell) ; th
 
 
 Given a coordinate (i,j) in the state matrix, the neighborhood is given by the following code. 
-The `meAndMyNeighbors(i,j)` select the neighboring portion of the (i,j) cell in the `state` matrix.
+The `meAndMyNeighbors(i,j)` select the neighboring portion of the (i,j) cell in the `matrixState` matrix.
 The `getgetneighbors(i,j)` transforms this portion in a more convenient format (a list) and excludes the calling cell (i,j) 
 Special cases of corner and border cells are considered having incomplete neighborhood.
 
 ```{r neighbors}
-meAndMyNeighbors <- function (state,i,j) {
+meAndMyNeighbors <- function (mstate,i,j) {
 #we assume world is square for now
-    size <-  nrow(state)  
+    size <-  nrow(mstate)  
     # corners 
   if (j==1 & i==1 ){
-    return(state[c(i, i + 1), c(j, j + 1)])
+    return(mstate[c(i, i + 1), c(j, j + 1)])
   } 
   if (j==size & i ==size){
-    return(state[c(i-1, i), c(j-1, j)])
+    return(mstate[c(i-1, i), c(j-1, j)])
   } 
   if(i==size & j==1) {
-    return(state[c(i-1, i ), c(j, j + 1)])
+    return(mstate[c(i-1, i ), c(j, j + 1)])
   }
   if(i==1 & j==size){
-    return(state[c(i, i + 1), c(j-1, j)])
+    return(mstate[c(i, i + 1), c(j-1, j)])
   }
   
   #borders without corners
   if (i==1 &  j > 1 & j < size) {
-    return(state[c(i, i + 1), c(j-1,j, j+1)])
+    return(mstate[c(i, i + 1), c(j-1,j, j+1)])
   }
   if(i==size & j >1 & j < size ){
-    return(state[c(i-1, i), c(j-1,j, j+1)])
+    return(mstate[c(i-1, i), c(j-1,j, j+1)])
   }
   if(j==1 & i >1 & i < size){
-        return(state[c(i-1, i, i+1), c(j, j+1)])
+        return(mstate[c(i-1, i, i+1), c(j, j+1)])
   }
   if(j==size & i >1 & i < size){
-    return(state[c(i-1, i, i+1), c(j-1, j)])
+    return(mstate[c(i-1, i, i+1), c(j-1, j)])
   }
   #regular cell case
   if (i > 1 & i < size & j > 1 & j < size){
-    return(state[c(i-1,i,i+1),c(j-1,j,j+1)])
+    return(mstate[c(i-1,i,i+1),c(j-1,j,j+1)])
   }
 }
 
-getneighbors <- function(state, i,j){
-    neighborhood <- meAndMyNeighbors(state, i, j)
+getneighbors <- function(mstate, i,j){
+    neighborhood <- meAndMyNeighbors(mstate, i, j)
         # flatten the 3xn matrix as a list
     neighborhood <- as.vector(neighborhood)
   return(neighborhood)
@@ -254,20 +253,20 @@ isHappy <- function(state, i , j, tolerance){
 ```
 
 To test the function, we have to apply it to each cell of the matrix.
-This will be more convenient if we use the melted state, where coordinates are immediately available for each cell.
+We use the melted state, where coordinates are immediately available for each cell.
 
 ``` {r testhappiness}
 library(dplyr)
 
 testEnv <-  createSchellingState(10,pctOccupied = 0.8)
 
-
-
 # we use melted state for immediatley accessible coordinates
 meltTestEnv <-  melt(testEnv,varnames = c("X","Y"))
 displayState(meltTestEnv, dotSize = 5)
+
 #handy rowwise operator form dplyr
 meltTestEnv <-  meltTestEnv %>% rowwise() %>% mutate(happy= isHappy(state = testEnv,X,Y,0.3))
+
 
 # we update the display function code
 displayStateUnhappy <- function(meltedState){
@@ -277,24 +276,26 @@ return(pp)
   }
 
 
-
 # save as function for later
-getUnhappy <-  function(meltedState){
+getUnhappy <-  function(meltedState, tolerance){
+  meltedState <-  updateHappiness(meltedState , tolerance )
   return(subset(meltedState, !happy))
 }
 
+updateHappiness <- function(meltedState, tolerance){
+  mat <-  attr(meltedState, "matrix")
+  return(meltedState %>% rowwise() %>% mutate(happy= isHappy(mat,X,Y,tolerance)))
+}
+
 createMeltedSchellingState <- function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pctRed, tolerance){
-  matState <-  createSchellingState(size, pctOccupied, pctRed, pctBlue)
+  matState <-  matrixSchellingState(size, pctOccupied, pctRed, pctBlue)
   meltedState <-  melt(matState,varnames = c("X","Y"))
   meltedState <-  meltedState %>% rowwise() %>% mutate(happy= isHappy(state = matState,X,Y, tolerance ))
   # we add an explicit ID of cells (row number), it will be useful
   meltedState$ID <- seq.int(nrow(meltedState))
+  attr(meltedState, "matrix") <- matState
   return(meltedState)
 }
-
-
-
-
 ``` 
 
 
@@ -328,8 +329,6 @@ displayStateUnhappy <- function(mystate) {
   
   return(pp)
 }
-
-
 ```
 
 
@@ -343,7 +342,6 @@ To do that, we sample among empty cells, update these empty cells values accordi
 
 
 ```{r move}
-
 stateEnv <- createMeltedSchellingState(10,pctOccupied = 0.8, tolerance=0.3)
 
 unhappy <-  getUnhappy(stateEnv)
@@ -389,45 +387,35 @@ if (numberOfEmpty < numberOfUnHappy){
 
 ## Simulation Loop
 
-Now that we have implemented one step of the model Dynamic , we can automate its execution in a loop, create some buttons and animate it in a `shiny`app (its a specific library that conveniently handles Graphical User Interface stuff)
+Now that we have implemented one step of the model Dynamic , we can automate its execution in a loop, create some buttons and animate it in a `shiny` app (a library for GUI and reactive programming stuff)
 
 Before we do that, we add the last lines of code in a function, 
 
 ```{r loopsimu}
-
-step <- function(meltedState){
-  unhappy <-  getUnhappy(meltedState)
+step <- function(meltedState, tolerance){
+  unhappy <-  getUnhappy(meltedState, tolerance)
   numberOfUnHappy <-  nrow(unhappy)
+    
+  if (numberOfUnHappy >0){
   emptyCells <-  getEmptyCells(meltedState)
   numberOfEmpty <-  nrow(getEmptyCells(meltedState))
-if (numberOfEmpty >= numberOfUnHappy){
-    futureOccupiedCells <-  sample_n(emptyCells, numberOfUnHappy)
-    futureOccupiedCells$value <-  unhappy$value
-    meltedState[futureOccupiedCells$ID,"value"] <-  futureOccupiedCells$value
-    meltedState[unhappy$ID, "value"] <- NA 
-}
-
-if (numberOfEmpty < numberOfUnHappy){
-    futureMovers <-  sample_n(unhappy, numberOfEmpty)
-     futureOccupiedCells <-  emptyCells
-    futureOccupiedCells$value <-  futureMovers$value
-    meltedState[futureOccupiedCells$ID,"value"] <-  futureOccupiedCells$value
-    meltedState[futureMovers$ID, "value"] <- NA 
-}
+  mover <-  sample_n(unhappy,1)
+  futureCell <-  sample_n(emptyCells, 1)
+  meltedState[futureCell$ID,"value"] <- mover$value
+  meltedState[mover$ID, "value"] <- NA 
+  }
+  meltedState <-  updateHappiness(meltedState, tolerance)
+    
   return(meltedState)
 }
 
 
-simulate <-  function(steps, state){
+simulate <-  function(steps, state, tolerance){
   for (i in 1:steps){
-    state <-  step(state)
+    state <-  step(state, tolerance)
     
   }
 }
-
-
-
-
 ```
 
 
@@ -441,15 +429,13 @@ shinyApp(
   ui = fluidPage(
      actionButton("go", "Go"),
    plotOutput("plot")
-    
   ),
 
   server = function(input, output) {
-  
-    state <-createMeltedSchellingState(20, 0.8, 0.5, 0.5,0.3)  
-    
-  currentState <- eventReactive(input$go, {
-    step(state)
+    tolerance <-  0.3
+    state <-createMeltedSchellingState(20, 0.8, 0.5, 0.5,tolerance)  
+    currentState   <- eventReactive(input$go, {
+    state <-  step(state, tolerance)
   })
 
   output$plot <- renderPlot({
