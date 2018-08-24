@@ -7,11 +7,25 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(githubinstall)
+library(rmapzen)
+library('leaflet')
+library(hrbrthemes)
+library(devtools)
+library(ggrepel)
+install_github("mountainMath/cancensusHelpers")
+library(sf)
+library(cancensus)
+library(RColorBrewer)
+library(cancensusHelpers)
+library(data.table)
+
 ```
 
 C. Anderson provokingly in the magazine Wired: 
 
-> "The End of Theory: the data deluge makes the scientific method obsolete""
+> "The End of Theory: the data deluge makes the scientific method obsolete"
 
 ## Why model?
 
@@ -40,184 +54,124 @@ A model is a simplified representation/abstraction of a target system, which imp
 In this tutorial, two kinds of models are presented: 
 
 * descriptive models (statistics)
-* genrative models (ABM)
+* generative models (ABM)
 
 More generally, we want to show how the two shed complementary lights on spatial problems and how they interact with the new massive data.
 
-### Case study: urban segregation
+### Case study: urban segregation with scraped AirBnB data
 
-Let's use the information theory to qualify *diversity* and *segregation* of a given city (cf. John Iceland et al on multigroup entropy: https://www.census.gov/hhes/www/housing/resseg/multigroup_entropy.pdf). The measure have been implemented are described below and tested on Canadian metropolisis from package `cancensus` (example by @dshkol: https://github.com/dshkol/scratchpad/blob/master/content/post/2018-05-10-diversity-and-segregation-i.Rmd).
-
-
-#### Diversity
-```{r diversity}
-
-diversity_index <- function(cma) {
-  
-  cma.ct <- get_census("CA16", regions=list(CMA=cma), 
-                       vectors = minority_vectors, level = "CT",
-                       labels = "short", geo_format = NA)
-  
-  cma.csd <- get_census("CA16", regions=list(CMA=cma), 
-                        vectors = minority_vectors, level = "CSD",
-                        labels = "short", geo_format = NA)
-  
-  # Calculating diversity (Theil's E)
-  # For every variable, divide by v_CA16_3999 and multiply times the logged inverse proportion, then
-  # take the sum for each tract. With 14 different groups, the max entropy is ln(14) = 2.64
-  base_pop <- quo(v_CA16_3954)
-  cma.ei <- cma.ct %>% 
-    group_by(GeoUID) %>% 
-    mutate_at(minorities, funs(E = (./!!(base_pop))*(log(!!(base_pop)/.)))) %>%
-    select(GeoUID, ends_with("_E")) %>% 
-    ungroup() %>% 
-    mutate_at(vars(ends_with("_E")), funs(ifelse(is.nan(.),0,.))) %>% 
-    mutate(Ei = rowSums(select(.,-1), na.rm = FALSE)) %>% 
-    select(GeoUID, Ei)
-  
-  cma.eicsd <- cma.csd %>% 
-    group_by(GeoUID) %>% 
-    mutate_at(minorities, funs(E = (./!!(base_pop))*(log(!!(base_pop)/.)))) %>%
-    select(GeoUID, ends_with("_E")) %>% 
-    ungroup() %>% 
-    mutate_at(vars(ends_with("_E")), funs(ifelse(is.nan(.),0,.))) %>% 
-    mutate(Ei = rowSums(select(.,-1), na.rm = FALSE)) %>% 
-    select(GeoUID, Ei)
-  
-  # Join with geography
-  
-  cma.geo <- get_census_geometry("CA16", regions=list(CMA=cma), 
-                                 level = "CT", geo_format = "sf")
-  
-  cma.csd.geo <- get_census_geometry("CA16", regions=list(CMA=cma), 
-                                     level = "CSD", geo_format = "sf")
-  
-  # Which Census Tracts are in which CSD
-  
-  cma.ct <- cma.geo %>% 
-    left_join(cma.ei) %>% 
-    mutate()
-  
-  cma.csd <- cma.csd.geo %>% 
-    left_join(cma.eicsd) %>% 
-    mutate()
-  
-  # Adding map detail
-  mz_set_tile_host_nextzen()
-  get_vector_tiles <- function(bbox){
-    mz_set_tile_host_nextzen(getOption("nextzen_API_key"))
-    mx_box=mz_rect(bbox$xmin,bbox$ymin,bbox$xmax,bbox$ymax)
-    mz_vector_tiles(mx_box, height = 1000, width = 1000)
-  }
-  
-  bbox <- st_bbox(cma.ct)
-  vector_tiles <- get_vector_tiles(bbox)
-  
-  if(length(vector_tiles$water$features) > 0) {
-    water <- as_sf(vector_tiles$water)
-  } 
-  
-  if(length(vector_tiles$roads$features) > 0) {
-    roads <- as_sf(vector_tiles$roads) %>% 
-      filter(kind == "highway")
-  } else {roads <- water}
-  
-  if(length(vector_tiles$transit$features) > 0) {
-    transit <- as_sf(vector_tiles$transit) %>% filter(kind == "subway")
-  } else {transit <- water}
-  
-  ct_div_plot <- ggplot(cma.ct) + 
-    geom_sf(aes(fill = Ei, colour = Ei)) +  
-    geom_sf(data = cma.csd.geo, fill = NA, colour = "white") +
-    geom_sf(data = transit, size = 0.2, colour = "grey24") +
-    geom_sf(data = roads, size = 0.2, colour = "grey36") +
-    geom_sf(data = water, fill = "lightblue", colour = NA) + 
-    coord_sf(datum = NA) +
-    scale_fill_viridis_c("Diversity Entropy Index",
-                         option = 3, breaks = c(0,0.5,1,1.5,2), 
-                         limits = c(0,2),
-                         labels = c("Less\nDiverse","","","","More\nDiverse"),
-                         guide = guide_legend(
-                           direction = "horizontal",
-                           title.position = "top",
-                           label.position = "bottom",
-                           keywidth = unit(2,"line"))) +
-    scale_colour_viridis_c(option = 3, guide = "none",limits = c(0,2)) +
-    theme(panel.background = element_blank(),
-          legend.position = c(0.2,0.9),
-          legend.background = element_blank(),
-          legend.key = element_rect(color = NA)) +
-    labs(caption = "Dmitry Shkolnik @dshkol | Data: Census 2016, Statistics Canada")
-  
-  csd_div_plot <- ggplot(cma.csd) + 
-    geom_sf(aes(fill = Ei, colour = Ei)) +  
-    geom_sf(data = transit, size = 0.2, colour = "grey24") +
-    geom_sf(data = roads, size = 0.2, colour = "grey36") +
-    geom_sf(data = water, fill = "lightblue", colour = NA) + 
-    coord_sf(datum = NA) +
-    scale_fill_viridis_c("Diversity Entropy Index",
-                         option = 3, breaks = c(0,0.5,1,1.5,2),
-                         limits = c(0,2),
-                         labels = c("Less\nDiverse","","","","More\nDiverse"),
-                         guide = guide_legend(
-                           direction = "horizontal",
-                           title.position = "top",
-                           label.position = "bottom",
-                           keywidth = unit(2,"line"))) +
-    scale_colour_viridis_c(option = 3, guide = "none",limits = c(0,2)) +
-    theme(panel.background = element_blank(),
-          legend.position = c(0.2,0.9),
-          legend.background = element_blank(),
-          legend.key = element_rect(color = NA)) +
-    labs(caption = "Dmitry Shkolnik @dshkol | Data: Census 2016, Statistics Canada")
-  objects <- list(ct = cma.ct, ct_plot = ct_div_plot,csd = cma.csd, csd_plot = csd_div_plot)
-  return(objects)
-}
-```
-
-#### Segregation
-
-```{r segregation}
-
-calc_h <- function(cma_obj) {
-  cth <- cma_obj$ct %>% 
-    select(GeoUID, CSD_UID, Population, Ei)
-  st_geometry(cth) <- NULL
-  
-  cth <- cth %>%
-    left_join(cma_obj$csd, by = c("CSD_UID"="GeoUID")) %>%
-    select(GeoUID, CSD_UID, name, ctpop = Population.x,
-           csdpop = Population.y, ctei = Ei.x, csdei = Ei.y) %>%
-    group_by(GeoUID, CSD_UID) %>%
-    filter(csdpop > 1000) %>%
-    mutate(smallh = (ctpop*(csdei - ctei))/(csdei*csdpop)) %>%
-    ungroup()
-
-  csdh <- cth %>%
-    group_by(CSD_UID, csdei) %>%
-    summarise(H = sum(smallh, na.rm = TRUE)) %>% 
-    right_join(cma_obj$csd,by = c("CSD_UID"="GeoUID"))
-  
-  return(csdh)
-}
-```
-
-
-#### Import Data
-```{r import}
-
-library(dplyr)
-library(sf)
-library(cancensus) 
-library(purrr)
-library(xml2)
-library(cancensusHelpers) # super specific helper functions 
-library(ggplot2)
-library(hrbrthemes)
-library(rmapzen) # for vector tiles
-library(ggrepel)
-
+```{r censussettings , include=FALSE}
 options(cancensus.api_key = "CensusMapper_5d949dee7f3e2546720b77d6ef08072e")
+ct = "35535"
+cm = "24462"
+cv = "59933"
+```
+
+##The data
+Let's bind together the data for all three cities
+```{r data}
+f = list.files('insideairbnb/')
+
+mont <- read.csv(paste0('insideairbnb/', f[1]))
+toro <- read.csv(paste0('insideairbnb/', f[2]))
+vanc <- read.csv(paste0('insideairbnb/', f[3]))
+
+toronto = unique(toro$city)
+vancouver = unique(vanc$city)
+montreal = unique(mont$city)
+
+df = rbind(mont, toro, vanc)
+```
+
+Cleaning here is choosing how to make the data at hand in line with the purpose of the analysis.
+
+First, if we want to take airbnb listings as proxies for residents, we need to identify and remove commercial lettings, as well as listings in neighbourhoods which are different from the host's neighbourhood, as well as multiproperties.
+```{r cleaningpropertytype}
+l <- levels(df$property_type)
+lookup = data.frame('type' = 1:length(l))
+lookup$type <- as.factor(l)
+lookup$property_group <- c(
+# [1] "Aparthotel"             "Apartment"              "Bed and breakfast"      "Boat"                   "Boutique hotel"         "Bungalow"               "Cabin"                 
+'hotel', 'home', 'hotel', 'other', 'hotel', 'home', 'other',
+  #  [8] "Camper/RV"              "Campsite"               "Casa particular (Cuba)" "Cave"                   "Chalet"                 "Condominium"            "Cottage"               
+'other', 'other', 'home', 'other', 'home', 'home', 'home',
+# [15] "Farm stay"              "Guest suite"            "Guesthouse"             "Hostel"                 "Hotel"                  "House"                  "Houseboat"             
+'home', 'home', 'hotel', 'hotel', 'hotel', 'home', 'home',
+# [22] "Hut"                    "Loft"                   "Nature lodge"           "Other"                  "Serviced apartment"     "Tent"                   "Timeshare"             
+'other', 'home', 'other', 'other', 'hotel', 'other', 'other',
+# [29] "Tiny house"             "Townhouse"              "Villa"                  "Barn"                   "Castle"                 "Dorm"                   "Earth house"           
+'home', 'home', 'home', 'home', 'home', 'hotel', 'other',
+# [36] "In-law"                 "Parking Space"          "Treehouse"              "Resort"            
+'home', 'other', 'other', 'hotel'
+)
+
+df = data.frame(df,lookup[match(df$property_type, lookup$type),] )
+ # dfh = subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood) & df$room_type != "Shared room")
+dfh = subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood))
+dfh$property_group <- NULL
+dfhu = dfh[!duplicated(dfh$host_id),]
+dim(df)
+dim(dfhu)
+```
+
+then we want to keep current listings, i.e. whose last review dates back from less than 2 years for example
+```{r cleaninginactive}
+dfhu$year = as.numeric(substr(dfhu$last_review, 1, 4))
+
+ # pal <- colorFactor(
+ #    palette =  brewer.pal(n=10, 'Blues'),
+ #    domain = dfhu$year
+ #  )
+
+# leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
+#   addCircleMarkers(
+#     data = dfhu,
+#         radius = ~ sqrt(0.07 * numPrice),
+#     lat = ~ latitude,
+#     color = ~pal(year),
+#     stroke = FALSE,
+#     fillOpacity = 0.5,
+#     layerId = ~ id,
+#     lng = ~ longitude
+#   ) %>%  addLegend(pal = pal, position = 'topleft', values = dfhu$year)
+# 
+
+dfhun = subset(dfhu, year >= 2017)
+dim(df)[1]
+dim(dfhun)[1]
+```
+
+Then, we want to use a price variable that is usable (e.g. numeric) and to normalise the price by a measure of size: the number of rooms because square feet is mostly not filled by hosts. This implies to remove the small number of shared rooms
+```{r createnormalisedprice}
+dfhun$numPrice <- as.numeric(gsub("[$]",'',dfhun$price))
+summary(dfhun$room_type)
+final = subset(dfhun, room_type != "Shared room")
+
+final$rooms = ifelse(final$bedrooms == 0, 1, final$bedrooms)
+final$priceperroom = as.numeric(ifelse(final$room_type == T,  final$numPrice,  final$numPrice / final$rooms))
+```
+
+Let's retrieve census shape files and data from the census API
+```{r prepmap, include=FALSE}
+
+city = "toronto"
+
+
+if(city == "toronto"){
+  citynames = toronto
+  censuscode = ct
+}
+if(city == "vancouver"){
+  citynames = vancouver
+  censuscode = cv
+}
+if(city == "montreal"){
+  citynames = montreal
+  censuscode = cm
+}
+
+
+city_data = subset(final, city %in% citynames )
 
 ## Identifying the vectors for visible Minority status
 parent_vector <- "v_CA16_3954"
@@ -228,237 +182,63 @@ minorities <- list_census_vectors("CA16") %>%
 
 minority_vectors <- c(parent_vector, minorities)
 
-# There are 244 ethnic origin vectors in the data. Let's get them at the CT level for the Vancouver metro region
-```
-
-
-
-#### Mapping diversity
-```{r mapDiv}
-
-diversity_csd_map <- function(csd) {
-   
-  csd.ct <- get_census("CA16", regions=list(CSD=csd), 
+cma.ct <- get_census("CA16", regions=list(CMA=censuscode), 
                        vectors = minority_vectors, level = "CT",
                        labels = "short", geo_format = NA)
-  
-  csd.csd <- get_census("CA16", regions=list(CSD=csd), 
+  cma.csd <- get_census("CA16", regions=list(CMA=censuscode), 
                         vectors = minority_vectors, level = "CSD",
                         labels = "short", geo_format = NA)
-  
-  # Calculating diversity (Theil's E)
-  # For every variable, divide by v_CA16_3999 and multiply times the logged inverse proportion, then
-  # take the sum for each tract. With 14 different groups, the max entropy is ln(14) = 2.64
-  base_pop <- quo(v_CA16_3954)
-  csd.ei <- csd.ct %>% 
-    group_by(GeoUID) %>% 
-    mutate_at(minorities, funs(E = (./!!(base_pop))*(log(!!(base_pop)/.)))) %>%
-    select(GeoUID, ends_with("_E")) %>% 
-    ungroup() %>% 
-    mutate_at(vars(ends_with("_E")), funs(ifelse(is.nan(.),0,.))) %>% 
-    mutate(Ei = rowSums(select(.,-1), na.rm = FALSE)) %>% 
-    select(GeoUID, Ei)
-  
-  csd.eicsd <- csd.csd %>% 
-    group_by(GeoUID) %>% 
-    mutate_at(minorities, funs(E = (./!!(base_pop))*(log(!!(base_pop)/.)))) %>%
-    select(GeoUID, ends_with("_E")) %>% 
-    ungroup() %>% 
-    mutate_at(vars(ends_with("_E")), funs(ifelse(is.nan(.),0,.))) %>% 
-    mutate(Ei = rowSums(select(.,-1), na.rm = FALSE)) %>% 
-    select(GeoUID, Ei)
-  
-  # Join with geography
-  
-  csd.geo <- get_census_geometry("CA16", regions=list(CSD=csd), 
+ 
+   csd.geo <- get_census_geometry("CA16", regions=list(CSD=censuscode), 
                                  level = "CT", geo_format = "sf")
   
-  csd.csd.geo <- get_census_geometry("CA16", regions=list(CSD=csd), 
+  csd.csd.geo <- get_census_geometry("CA16", regions=list(CSD=censuscode), 
                                      level = "CSD", geo_format = "sf")
+```
   
-  # Which Census Tracts are in which CSD
+  and map!
   
-  csd.ct <- csd.geo %>% 
-    left_join(csd.ei) %>% 
-    mutate()
-  
-  csd.csd <- csd.csd.geo %>% 
-    left_join(csd.eicsd) %>% 
-    mutate()
-  
-  # Adding map detail
-  mz_set_tile_host_nextzen()
-  get_vector_tiles <- function(bbox){
-    mz_set_tile_host_nextzen(getOption("nextzen_API_key"))
-    mx_box=mz_rect(bbox$xmin,bbox$ymin,bbox$xmax,bbox$ymax)
-    mz_vector_tiles(mx_box, height = 1000, width = 1000)
-  }
-  
-  bbox <- st_bbox(csd.ct)
-  vector_tiles <- get_vector_tiles(bbox)
-  
-  if(length(vector_tiles$water$features) > 0) {
-    water <- as_sf(vector_tiles$water)
-  } 
-  
-  if(length(vector_tiles$roads$features) > 0) {
-    roads <- as_sf(vector_tiles$roads) %>% 
-      filter(kind == "highway")
-  } else {roads <- water}
-  
-  if(length(vector_tiles$transit$features) > 0) {
-    transit <- as_sf(vector_tiles$transit) %>% filter(kind == "subway")
-  } else {transit <- water}
-  
-  ct_div_plot <- ggplot(csd.ct) + 
-    geom_sf(aes(fill = Ei, colour = Ei)) +  
-    geom_sf(data = csd.csd.geo, fill = NA, colour = "white") +
-    geom_sf(data = transit, size = 0.2, colour = "grey24") +
-    geom_sf(data = roads, size = 0.2, colour = "grey36") +
-    geom_sf(data = water, fill = "lightblue", colour = NA) + 
-    coord_sf(datum = NA) +
-    scale_fill_viridis_c("Diversity Entropy Index",
-                         option = 3, breaks = c(0,0.5,1,1.5,2), 
-                         limits = c(0,2),
-                         labels = c("Less\nDiverse","","","","More\nDiverse"),
-                         guide = guide_legend(
-                           direction = "horizontal",
-                           title.position = "top",
-                           label.position = "bottom",
-                           keywidth = unit(2,"line"))) +
-    scale_colour_viridis_c(option = 3, guide = "none",limits = c(0,2)) +
-    theme(panel.background = element_blank(),
-          legend.position = c(0.2,0.9),
-          legend.background = element_blank(),
-          legend.key = element_rect(color = NA)) + 
-    labs(caption = "Dmitry Shkolnik @dshkol | Data: Census 2016, Statistics Canada")
-  return(ct_div_plot)
-}
+```{r map}
 
-# A function to calculate diversity scores only for CSD
-diversity_csd <- function(cma) {
-  cma.csd <- get_census("CA16", regions=list(CMA=cma), 
-                        vectors = minority_vectors, level = "CSD",
-                        labels = "short", geo_format = NA)
+  pal <- colorQuantile(
+     palette =  'Blues',
+     domain = city_data$priceperroom,
+     n = 10
+   )
+
+  map <- leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
+      addPolygons(
+      data = csd.csd.geo,
+      color = 'black',
+      fill = F,
+      weight = 0.7,
+      opacity = 0.9
+    ) %>% addPolygons(
+      data = csd.geo,
+      color = 'grey',
+      fill = F,
+       weight = 0.4
+    ) %>%
+  addCircleMarkers(
+    data = city_data,
+        radius = ~ sqrt(4 * rooms),
+    lat = ~ latitude,
+    fillColor = ~ pal(priceperroom),
+    color = 'black',
+    stroke = T,
+    fillOpacity = 0.5,
+   weight = 0.1,
+    layerId = ~ id,
+    lng = ~ longitude
+  ) %>% 
+  addLegend(pal = pal, position = 'topleft', values = city_data$priceperroom)
+
+ map
   
-  # Calculating diversity (Theil's E)
-  # For every variable, divide by v_CA16_3999 and multiply times the logged inverse proportion, then
-  # take the sum for each tract. With 14 different groups, the max entropy is ln(14) = 2.64
-  base_pop <- quo(v_CA16_3954)
-  cma.eicsd <- cma.csd %>% 
-    group_by(GeoUID,`Region Name`, Population) %>% 
-    mutate_at(minorities, funs(E = (./!!(base_pop))*(log(!!(base_pop)/.)))) %>%
-    select(GeoUID, `Region Name`, Population, ends_with("_E")) %>% 
-    ungroup() %>% 
-    mutate_at(vars(ends_with("_E")), funs(ifelse(is.nan(.),0,.))) %>% 
-    mutate(Ei = rowSums(select(.,-c(1,2,3)), na.rm = FALSE)) %>% 
-    mutate(CMA = cma) %>% 
-    select(CMA, GeoUID, `Region Name`, Population, Ei)
-  return(cma.eicsd)
-}
 
-# Apply function to get EI for all CSD for all Canadian CMAS
-cmas <- list_census_regions("CA16") %>% filter(level == "CMA") %>% select(region, name, pop)
-
-cma_ei <- purrr::map_df(cmas$region, .f = diversity_csd) %>% 
-  left_join(cmas, by = c("CMA"="region")) %>% 
-  select(`Region Name`, `CMA Name`=name, CMA, GeoUID, Population, `CMA Population` = pop, Ei)
-
-# Top diverse CMAs with population over 5000
-
-cma_ei %>% filter(Population > 5000) %>% arrange(desc(Ei)) %>% clean_names
-
-# Pregenerating some sample CMA diversity objects - these make for the cool maps.
-
-vancouver <- diversity_index("59933")
-toronto <- diversity_index("35535")
-montreal <-diversity_index("24462")
-#ottawa <-diversity_index("505")
-#quebeccity <- diversity_index("24421")
-#winnipeg <-diversity_index("46602")
-calgary <-diversity_index("48825")
-#hamilton <-diversity_index("35537")
-#stjohns <- diversity_index("10001")
-#victoria <- diversity_index("59935")
-#saguenay <- diversity_index("24408")
-#abby <- diversity_index("59932")
-#sask <- diversity_index("47725")
 ```
 
 
-```{r mapSeg}
-segregation_csd <- function(cma) {
-  cma.ct <- get_census("CA16", regions=list(CMA=cma), 
-                        vectors = minority_vectors, level = "CT",
-                        labels = "short", geo_format = "sf")
-  st_geometry(cma.ct) <- NULL
-  
-  cma.csd <- get_census("CA16", regions=list(CMA=cma), 
-                        vectors = minority_vectors, level = "CSD",
-                        labels = "short", geo_format = NA)
-  
-  base_pop <- quo(v_CA16_3954)
-  
-  cma.eict <- cma.ct %>% 
-    group_by(GeoUID,`Region Name`, Population) %>% 
-    mutate_at(minorities, funs(E = (./!!(base_pop))*(log(!!(base_pop)/.)))) %>%
-    ungroup() %>% 
-    select(GeoUID, CSD_UID, Population, ends_with("_E")) %>% 
-    mutate_at(vars(ends_with("_E")), funs(ifelse(is.nan(.),0,.))) %>% 
-    mutate(Ei = rowSums(select(.,-c(1,2,3)), na.rm = FALSE)) %>% 
-    ungroup() %>% 
-    select(GeoUID, CSD_UID, Population, Ei)
 
-  cma.eicsd <- cma.csd %>%
-    group_by(GeoUID,`Region Name`, Population) %>%
-    mutate_at(minorities, funs(E = (./!!(base_pop))*(log(!!(base_pop)/.)))) %>%
-    ungroup() %>%
-    select(GeoUID, `Region Name`, Population, ends_with("_E")) %>%
-    mutate_at(vars(ends_with("_E")), funs(ifelse(is.nan(.),0,.))) %>%
-    mutate(Ei = rowSums(select(.,-c(1,2,3)), na.rm = FALSE)) %>%
-    mutate(CMA = cma) %>%
-    select(CMA, GeoUID, `Region Name`, Population, Ei)
-
-  cma.h <- cma.eict %>%
-    left_join(cma.eicsd, by = c("CSD_UID"="GeoUID")) %>%
-    select(GeoUID, CSD_UID, name = `Region Name`, ctpop = Population.x,
-           csdpop = Population.y, ctei = Ei.x, csdei = Ei.y) %>%
-    filter(csdpop > 1000) %>%
-    group_by(GeoUID, CSD_UID) %>%
-    mutate(smallh = (ctpop*(csdei - ctei))/(csdei*csdpop)) %>%
-    ungroup() %>%
-    group_by(CSD_UID, csdei, name, csdpop) %>%
-    summarise(H = sum(smallh, na.rm = TRUE)) %>% 
-    mutate(cma = cma)
-return(cma.h)
-}
-
-cma_seg <- purrr::map_df(cmas$region, .f = segregation_csd) %>% 
-  left_join(cmas, by = c("cma"="region")) %>% 
-  select(`Region Name`=name.x, `CMA Name`=name.y, CMA = cma,Population = csdpop, `CMA Population` = pop, Ei = csdei, H) %>% 
-  ungroup()
-
-
-clean_names <- function (dfr) {
-    dfr <- dfr %>% mutate(name = as.character(name))
-    replacement <- dfr %>% mutate(name = gsub(" \\(.*\\)", 
-        "", name)) %>% pull(name)
-    duplicated_rows <- c(which(duplicated(replacement, fromLast = TRUE)), 
-        which(duplicated(replacement, fromLast = FALSE)))
-    replacement[duplicated_rows] <- dfr$name[duplicated_rows]
-    dfr$name <- factor(replacement)
-    dfr
-}
-
-clean_names2 <- function (dfr) {
-    dfr <- dfr %>% mutate(`Region Name` = as.character(`Region Name`))
-    replacement <- dfr %>% mutate(`Region Name` = gsub(" \\(.*\\)", 
-        "", `Region Name`)) %>% pull(`Region Name`)
-    duplicated_rows <- c(which(duplicated(replacement, fromLast = TRUE)), 
-        which(duplicated(replacement, fromLast = FALSE)))
-    replacement[duplicated_rows] <- dfr$`Region Name`[duplicated_rows]
-    dfr$`Region Name` <- factor(replacement)
-    dfr
-}
-```
+Let's use the information theory to qualify *diversity* and *segregation* of a given city (cf. John Iceland et al on multigroup entropy: https://www.census.gov/hhes/www/housing/resseg/multigroup_entropy.pdf). The measure have been implemented are described below and tested on Canadian metropolisis from package `cancensus` (example by @dshkol: https://github.com/dshkol/scratchpad/blob/master/content/post/2018-05-10-diversity-and-segregation-i.Rmd).
 
