@@ -1,0 +1,118 @@
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 0.9em;
+   color: #4d4d4d;
+}
+
+body {
+  max-width: 800px;
+  margin: 0.1em;
+  padding: 0.1em;
+  line-height: 20px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 {
+   font-size:2.2em;
+   color: #9999ff;
+}
+
+h2 {
+   font-size:1.5em;
+   color: #6699ff;
+}
+
+h3 {
+   font-size:1.2em;
+}
+
+h4 {
+   font-size:1.0em;
+}
+
+h5 {
+   font-size:0.9em;
+}
+
+h6 {
+   font-size:0.8em;
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre, img {
+  max-width: 100%;
+}
+
+strong{color: #ff99ff;}
+
+pre {
+  overflow-x: auto;
+  padding: 0.1em;
+  border: 0.1em;
+  margin: 0.25em;
+}
+
+pre code {
+   overflow-x: inherit;
+   display: block;
+   background-color: #ffe6ff;
+   border:none;
+   font-size:0.8em;
+}
+
+code {
+   overflow-x: inherit;
+}
+
+code[class] {
+  background-color: #ffffe6;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 5px;
+   border-bottom: thin;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+small {
+   font-size:0.65em;
+}
+
+.left {
+  width: 48%;
+  float: left;
+}
+
+.right {
+  margin-left: 54%;
+  /* Change this to whatever the width of your left column is*/
+}
+
+.clear {
+  clear: both;
+}
+
+.column {
+    float: left;
+    width: 50%;
+}

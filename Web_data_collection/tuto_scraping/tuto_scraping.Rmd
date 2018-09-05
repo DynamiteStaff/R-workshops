@@ -1,0 +1,578 @@
+--- 
+title: Web scraping with R
+author: Lise Vaudor
+output: 
+  slidy_presentation:
+    css: css/styles.css
+    footer: "Web scraping: tools"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+library(tidyverse)
+library(purrr)
+library(rvest)
+```
+
+
+# Packages
+
+<div class="left">
+- <img src='images/logo_rvest.jpg' width='50'>`rvest`: web scraping
+- <img src='images/logo_dplyr.jpg' width='50'>`dplyr`: table-wrangling
+- <img src='images/logo_stringr.png' width='50'>`stringr`: strings
+- <img src='images/purrr_logo.png' width='50'>`purrr`: iteration
+</div>
+
+# Web scraping
+
+<div class="left">
+
+![](images/step1_process.png)
+
+**Web scraping**
+
+Understanding html documents' structure
+
+Tools **SelectorGadget**
+or html inspector
+
+</div>
+<div class="right">
+
+Package **rvest**:
+<img src="images/logo_rvest.jpg" alt="hexlogo_rvest" width="50" height="50"> 
+
+To **collect the contents of a web page**, one has to:
+
+- **read an html page** in R
+- **get the element of interest** in the page (basic html, [SelectorGadget](https://cran.r-project.org/web/packages/rvest/vignettes/selectorgadget.html))
+- **parse** the page
+- **select an element** of the page
+- **get the contents** of the element
+
+</div>
+
+# html tags
+
+<div class="left" margin-left:40%>
+    <html>
+    <style>
+    h1 {background-color: powderblue;}
+    .image {margin-left:50%;}
+    .comment{border-style:solid; background-color:LemonChiffon;}
+    .comment-author{font-style: italic;}
+    </style>
+    <h1> MA VIE A LA FERME </h1>
+    <div class="ingredients">
+      <b> INGREDIENTS</b>
+      <ul>
+        <li> >1 cochon(s) </li>
+        <li> >1 légume(s) </li>
+      </ul>
+    </div>
+    <div class="right"><div class="image"><img src='images/cochon.png'></div></div>
+    <p> Je fais de la bouillie pour mes petits cochons.</p>
+    <p> Pour un cochon, pour deux cochons, pour trois cochons, pour quatre, puis pour cinq, pour six, pour sept, pour huit, pour neuf, boeuf! </p>
+    <b>comments</b>
+    <div class="comment">Et pour une poule sur un mur qui picoterait du pain dur?
+    </div>
+    <div class="comment-author">Emma, 22 ans, Limoges</div>
+    <div class="comment">Je vois que vous êtes, telle la petite poule rousse, bien aimable. Avez-vous pu compter sur l'aide du chat et du canard pour semer vos 5 grains de blé?</div>
+    <div class="comment-author">Michel, 56 ans, Rennes</div>
+    </html>
+
+</div>
+
+<div class="right">
+<iframe src='data/blog_de_ginette.htm' width='500' height='500'></iframe>
+</div>
+
+# Read an html page
+
+<div class="left" margin-left:40%>
+    <html>
+    <style>
+    h1 {background-color: powderblue;}
+    .image {margin-left:50%;}
+    .comment{border-style:solid; background-color:LemonChiffon;}
+    .comment-author{font-style: italic;}
+    </style>
+    <h1> MA VIE A LA FERME </h1>
+    <div class="ingredients">
+      <b> INGREDIENTS</b>
+      <ul>
+        <li> >1 cochon(s) </li>
+        <li> >1 légume(s) </li>
+      </ul>
+    </div>
+    <div class="right"><div class="image"><img src='images/cochon.png'></div></div>
+    <p> Je fais de la bouillie pour mes petits cochons.</p>
+    <p> Pour un cochon, pour deux cochons, pour trois cochons, pour quatre, puis pour cinq, pour six, pour sept, pour huit, pour neuf, boeuf! </p>
+    <b>comments</b>
+    <div class="comment">Et pour une poule sur un mur qui picoterait du pain dur?
+    </div>
+    <div class="comment-author">Emma, 22 ans, Limoges</div>
+    <div class="comment">Je vois que vous êtes, telle la petite poule rousse, bien aimable. Avez-vous pu compter sur l'aide du chat et du canard pour semer vos 5 grains de blé?</div>
+    <div class="comment-author">Michel, 56 ans, Rennes</div>
+    </html>
+
+</div>
+
+<div class="right">
+
+Read html page in R:  
+```{r}
+library(rvest)
+html=read_html("data/blog_de_ginette.htm", encoding="UTF-8")
+html
+```
+
+</div>
+
+# Extract some elements in the html page
+
+<div class="left" margin-left:40%>
+    <html>
+    <style>
+    h1 {background-color: powderblue;}
+    .image {margin-left:50%;}
+    .comment{border-style:solid; background-color:LemonChiffon;}
+    .comment-author{font-style: italic;}
+    </style>
+    <h1> MA VIE A LA FERME </h1>
+    <div class="ingredients">
+      <b> INGREDIENTS</b>
+      <ul>
+        <li> >1 cochon(s) </li>
+        <li> >1 légume(s) </li>
+      </ul>
+    </div>
+    <div class="right"><div class="image"><img src='images/cochon.png'></div></div>
+    <p> Je fais de la bouillie pour mes petits cochons.</p>
+    <p> Pour un cochon, pour deux cochons, pour trois cochons, pour quatre, puis pour cinq, pour six, pour sept, pour huit, pour neuf, boeuf! </p>
+    <b>comments</b>
+    <div class="comment">Et pour une poule sur un mur qui picoterait du pain dur?
+    </div>
+    <div class="comment-author">Emma, 22 ans, Limoges</div>
+    <div class="comment">Je vois que vous êtes, telle la petite poule rousse, bien aimable. Avez-vous pu compter sur l'aide du chat et du canard pour semer vos 5 grains de blé?</div>
+    <div class="comment-author">Michel, 56 ans, Rennes</div>
+    </html>
+</div><div class="right">
+
+**Extract** some elements ("nodes" or "nodesets"):
+
+```{r}
+html_nodes(html,"b")
+html_nodes(html,".comment-author") 
+html_nodes(html,".ingredients") %>% 
+  html_children()
+```
+</div>
+
+# Extract the type of some elements
+
+<div class="left">
+    <html>
+    <style>
+    h1 {background-color: powderblue;}
+    .image {margin-left:50%;}
+    .comment{border-style:solid; background-color:LemonChiffon;}
+    .comment-author{font-style: italic;}
+    </style>
+    <h1> MA VIE A LA FERME </h1>
+    <div class="ingredients">
+      <b> INGREDIENTS</b>
+      <ul>
+        <li> >1 cochon(s) </li>
+        <li> >1 légume(s) </li>
+      </ul>
+    </div>
+    <div class="right"><div class="image"><img src='images/cochon.png'></div></div>
+    <p> Je fais de la bouillie pour mes petits cochons.</p>
+    <p> Pour un cochon, pour deux cochons, pour trois cochons, pour quatre, puis pour cinq, pour six, pour sept, pour huit, pour neuf, boeuf! </p>
+    <b>comments</b>
+    <div class="comment">Et pour une poule sur un mur qui picoterait du pain dur?
+    </div>
+    <div class="comment-author">Emma, 22 ans, Limoges</div>
+    <div class="comment">Je vois que vous êtes, telle la petite poule rousse, bien aimable. Avez-vous pu compter sur l'aide du chat et du canard pour semer vos 5 grains de blé?</div>
+    <div class="comment-author">Michel, 56 ans, Rennes</div>
+    </html>
+</div><div class="right">
+
+![](images/schema_rvest_nodes.png)
+
+**Extract the type** of nodes or nodesets:
+
+```{r}
+html_nodes(html,".image") %>% 
+  html_name()
+```
+
+</div>
+
+# Extract the content of some elements
+
+<div class="left">
+    <html>
+    <style>
+    h1 {background-color: powderblue;}
+    .image {margin-left:50%;}
+    .comment{border-style:solid; background-color:LemonChiffon;}
+    .comment-author{font-style: italic;}
+    </style>
+    <h1> MA VIE A LA FERME </h1>
+    <div class="ingredients">
+      <b> INGREDIENTS</b>
+      <ul>
+        <li> >1 cochon(s) </li>
+        <li> >1 légume(s) </li>
+      </ul>
+    </div>
+    <div class="right"><div class="image"><img src='images/cochon.png'></div></div>
+    <p> Je fais de la bouillie pour mes petits cochons.</p>
+    <p> Pour un cochon, pour deux cochons, pour trois cochons, pour quatre, puis pour cinq, pour six, pour sept, pour huit, pour neuf, boeuf! </p>
+    <b>comments</b>
+    <div class="comment">Et pour une poule sur un mur qui picoterait du pain dur?
+    </div>
+    <div class="comment-author">Emma, 22 ans, Limoges</div>
+    <div class="comment">Je vois que vous êtes, telle la petite poule rousse, bien aimable. Avez-vous pu compter sur l'aide du chat et du canard pour semer vos 5 grains de blé?</div>
+    <div class="comment-author">Michel, 56 ans, Rennes</div>
+    </html>
+</div><div class="right">
+
+![](images/schema_rvest_nodes.png)
+
+**Extract the content** of nodes or nodesets:
+
+```{r}
+html_nodes(html,"b") %>% 
+  html_text() 
+```
+
+
+</div>
+
+
+
+# Extract the attributes of some elements
+
+<div class="left">
+    <html>
+    <style>
+    h1 {background-color: powderblue;}
+    .image {margin-left:50%;}
+    .comment{border-style:solid; background-color:LemonChiffon;}
+    .comment-author{font-style: italic;}
+    </style>
+    <h1> MA VIE A LA FERME </h1>
+    <div class="ingredients">
+      <b> INGREDIENTS</b>
+      <ul>
+        <li> >1 cochon(s) </li>
+        <li> >1 légume(s) </li>
+      </ul>
+    </div>
+    <div class="right"><div class="image"><img src='images/cochon.png'></div></div>
+    <p> Je fais de la bouillie pour mes petits cochons.</p>
+    <p> Pour un cochon, pour deux cochons, pour trois cochons, pour quatre, puis pour cinq, pour six, pour sept, pour huit, pour neuf, boeuf! </p>
+    <b>comments</b>
+    <div class="comment">Et pour une poule sur un mur qui picoterait du pain dur?
+    </div>
+    <div class="comment-author">Emma, 22 ans, Limoges</div>
+    <div class="comment">Je vois que vous êtes, telle la petite poule rousse, bien aimable. Avez-vous pu compter sur l'aide du chat et du canard pour semer vos 5 grains de blé?</div>
+    <div class="comment-author">Michel, 56 ans, Rennes</div>
+    </html>
+</div><div class="right">
+
+![](images/schema_rvest_nodes.png)
+
+**Extract the attributes** of nodes or nodesets:
+
+```{r}
+html_nodes(html,"div") %>% 
+  html_attrs()
+```
+</div>
+
+
+# Rectangular format, and function-ization
+
+<div class="left">
+![](images/step2_process.png)
+
+Extract data and make it into a table:
+
+```{r}
+page="data/blog_de_ginette.htm"
+html=read_html(page, encoding="UTF-8")
+texte=html %>% html_nodes(".comment") %>% html_text()
+auteur=html %>% html_nodes(".comment-author") %>% html_text()
+tib_comments=tibble(texte,auteur)
+tib_comments
+```
+
+</div><div class="right">
+
+It is actually a good idea to make all this into a fonction that would have the page's url as intput and the tibble as output:
+
+```{r}
+extract_comments=function(page){
+  html=read_html(page, encoding="UTF-8")
+  texte=html %>% html_nodes(".comment") %>% html_text()
+  auteur=html %>% html_nodes(".comment-author") %>% html_text()
+  tib_comments=tibble(doc=rep(page,length(texte)),
+                          texte,
+                          auteur)
+  return(tib_comments)
+}
+
+extract_comments("data/blog_de_ginette.htm")
+extract_comments("data/blog_de_jean-marc.htm")
+```
+</div>
+
+# Iteration 
+
+<div class="left">
+![](images/step2_process.png)
+
+Now, let's imagine that we actually have to deal with several pages **with a common structure**.
+
+We would like to apply `extract_comments()` iteratively to all these pages.
+
+</div><div class="right">
+The `purrr` package enables us to **apply a function iteratively** to all elements of a list or of a vector (... of course this is just a more straightforward way to loop through a `for` structure...).
+
+![](images/schema_purrr.png)
+</div>
+
+# Iteration with purrr
+
+<div class="left">
+```{r}
+pages=c("data/blog_de_ginette.htm",
+        "data/blog_de_jean-marc.htm",
+        "data/blog_de_norbert.htm")
+
+list_comments=map(pages, extract_comments)
+list_comments
+```
+</div>
+<div class="right">
+```{r}
+tibtot_comments <- list_comments %>%
+  bind_rows()
+tibtot_comments
+```
+
+```{r, echo=FALSE}
+write_csv(tibtot_comments, "data/tibtot_comments.csv")
+```
+</div>
+
+# Manipulate strings: package stringr
+
+
+Package **stringr**<img src='images/logo_stringr.png' width='50'>
+Blog post (in French) [here](http://perso.ens-lyon.fr/lise.vaudor/manipuler-des-strings-avec-r/).
+
+![](images/schema_stringr.png){width=70%}
+
+
+# Strings: concatenate, replace pattern
+
+
+<div class="left">
+**str_c()** to combine strings
+
+![](images/str_c.png)
+```{r}
+str_c("abra","ca","dabra")
+str_c("Les jeux","de mots laids","sont pour","les gens bêtes", sep=" ")
+```
+</div>
+<div class="right">
+**str_detect()** detects a pattern
+
+![](images/str_detect.png)
+```{r}
+str_detect(c("Quarante","carottes","crues",
+             "croient","que","croquer",
+             "crée","des","crampes."),
+           pattern="cr")
+```
+</div>
+
+
+# Strings: replace pattern, extract pattern
+<div class="left">
+**str_replace()** replaces a pattern with another
+
+
+![](images/str_replace.png)
+
+```{r}
+str_replace(c("All we hear is",
+              "Radio ga ga",
+              "Radio goo goo",
+              "Radio ga ga"),
+            pattern="goo",
+            replacement="ga")
+```
+
+</div>
+<div class="right">
+
+**str_extract()** extracts the pattern (if it's there!)
+
+![](images/str_extract.png)
+
+</div>
+<div class="right">
+
+```{r}
+str_extract(c("L'âne","Trotro","trotte","à une allure","traitreusement","tranquille"),
+           pattern="tr")
+```
+
+</div>
+
+# Regular expressions
+
+**Regular expressions** are used to define **patterns** through **rules of construction**.[A tutorial here](http://stringr.tidyverse.org/articles/regular-expressions.html)
+
+![](images/regexp.png){width=70%}.
+
+
+# Regexp: character classes and groups
+
+<div class="left">
+![](images/regexp_character_classes.png)
+
+A **character class** corresponds to the notation `[...]`.
+
+For instance, to detect all voyels in the string:
+```{r}
+str_view_all("youp la boum",
+             "[aeiou]")
+```
+
+</div>
+<div class="right">
+
+See the difference:
+
+```{r}
+str_view_all("A132-f445-e34-C308-M9-E18",
+             "[308]")
+str_view_all("A132-f445-e34-C308-M9-E18",
+             "308")
+```
+
+**Any character** can be noted `.`.
+
+For instance, the pattern "any character followed by a letter" can be searched through
+
+```{r}
+str_view_all("32a-B44-552-98eEf",
+             ".[a-z]")
+```
+</div>
+
+# Regexp: special characters
+
+<div class="left">
+![](images/regexp_backslashes.png)
+
+To find dots, question marks, exclamation marks:
+
+```{r}
+str_view_all(c("Allô, John-John? Ici Joe la frite. Surprise!"),
+             "[\\.\\?\\!]")
+```
+
+Note that we don't write `"[.?!]"`, but `"[\\.\\?\\!]"`.
+
+</div>
+<div class="right">
+
+
+`.` (as we saw before), as well as `?` and `!` are **special characters**. So, to point out *actual* dots or interrogation/exclamation marks, one has to use the escape character `\`. The regular expression hence becomes `[\.\?\!]`... 
+
+But it does not end here... as it is not *directly* the regular expression that is passed to the function, but a *string* that is *interpreted as a regular expression*. Thus each escape character `\` has to be escaped through a `\`. So that the pattern passed to the function is actually `"[\\.\\?\\!]"`.
+</div>
+
+# Regexp: excluded characters, character ranges
+
+<div class="left">
+A character class can be defined as all characters **excluding the ones listed**. This is noted as `[^...]`:
+
+For instance, all characters that are neither a vowel nor a blank space:
+
+```{r}
+str_view_all("turlututu chapeau pointu",
+             "[^aeiou ]")
+```
+
+</div>
+<div class="right">
+
+Ranges of characters are noted `[...-...]`
+
+For instance, all numbers between 1 and 5:
+
+```{r}
+str_view_all(c("3 petits cochons", "101 dalmations", "7 nains"),
+             "[1-5]")
+```
+
+... or all those between A-F or a-e:
+
+```{r}
+str_view_all("A132-f445-e34-C308-M2244-Z449-E18",
+             "[A-Fa-e]")
+```
+</div>
+
+# Regexp: predefined classes
+
+<div class="left">
+Some character classes are predefined for instance **digits**, **punctuation characters**, **lower-case alphabetical characters**, etc.
+
+</div>
+<div class="right">
+![](images/regexp_predefined_classes.png)
+</div>
+# Regexp: quantifiers
+
+<div class="left">
+Quantifiers are used to specify **how many consecutive times** a particular class or group occurs.
+
+![](images/regexp_quantifiers.png)
+
+**zero or one**: the pattern of interest is followed by `?`.
+
+```{r}
+str_view_all(c("file1990-fileB1990-fileAbis2005"),
+             "file\\d?")
+```
+
+
+</div>
+<div class="right">
+**zero or more**: O the pattern of interest is followed by `*`.
+
+```{r}
+str_view_all(c("file1990-fileB1990-fileAbis2005"),
+             "file\\d*")
+```
+
+**one or more** :  the pattern of interest is followed by `+`.
+
+```{r}
+str_view_all(c("file1990-fileB1990-fileAbis2005"),
+             "file\\d+")
+```
+
+</div>
