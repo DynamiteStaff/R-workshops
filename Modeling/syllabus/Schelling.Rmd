@@ -428,6 +428,7 @@ globalSimilarityPct(stateEnv)
 
 
 
+
 ## Global unsatisfaction percentage 
 
 
@@ -446,6 +447,44 @@ globalunHappyPct(stateEnv)
 
 
 ## Segregation measures
+
+
+We use a library called `oasisR` which implements a lot of segregation measures, provided that your state is given as a numeric matrix, so we have to convert our long-format state to an adapted format 
+
+
+```{r convertToMatrix}
+
+convert <-  function(state, nr, nc){
+  mat <- matrix(data = state$value, nrow = nr, ncol=nc)
+  return(mat)
+}
+convertToMatrix(state = stateEnv, 10,10)
+displayStateUnhappy(stateEnv)
+```
+
+### Duncan Segregation index
+
+
+```{r ISDuncan}
+library(OasisR)
+getDuncanSI <- function(state, nr, nc){
+  return(ISDuncan(state$value ) )
+}
+
+```
+
+
+
+### Morrill
+
+
+### Wong
+
+
+### Gorard
+
+
+### Gini 
 
 
 
