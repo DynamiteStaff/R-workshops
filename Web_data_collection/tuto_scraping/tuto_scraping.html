@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <meta http-equiv="Content-Style-Type" content="text/css" />
   <meta name="generator" content="pandoc" />
-  <meta name="author" content="Lise Vaudor" />
+  <meta name="author" content="Lise Vaudor / Sébastien Rey-Coyrehourcq / Fabien Pfender" />
   <meta name="copyright" content="Web scraping: tools" />
   <title>Web scraping with R</title>
   <style type="text/css">code{white-space: pre;}</style>
@@ -57,8 +57,56 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <div class="slide titlepage">
   <h1 class="title">Web scraping with R</h1>
   <p class="author">
-Lise Vaudor
+Lise Vaudor / Sébastien Rey-Coyrehourcq / Fabien Pfender
   </p>
+</div>
+<div id="today" class="slide section level1">
+<h1>Today !</h1>
+<ul>
+<li>Webscraping, what is this ?</li>
+<li>Some ethicals considerations</li>
+<li>A cat and mouse game</li>
+</ul>
+</div>
+<div id="webscraping" class="slide section level1">
+<h1>Webscraping</h1>
+<p>bla bla tous</p>
+</div>
+<div id="ethics-some-elements-of-reflexion." class="slide section level1">
+<h1>Ethics, some elements of reflexion.</h1>
+<p>bla bla seb</p>
+</div>
+<div id="a-cat-and-mouse-game-1" class="slide section level1">
+<h1>A cat and mouse game (1)</h1>
+<p><strong>How to defend from webscraping : </strong></p>
+<p>{<svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> : cost, difficulty to implement } , {<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> : dificulty to bypass } , { <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm194.8 170.2C334.3 380.4 292.5 400 248 400s-86.3-19.6-114.8-53.8c-5.7-6.8-4.7-16.9 2-22.5 6.8-5.7 16.9-4.7 22.5 2 22.4 26.9 55.2 42.2 90.2 42.2s67.8-15.4 90.2-42.2c5.7-6.8 15.7-7.7 22.5-2 6.9 5.7 7.8 15.8 2.2 22.5z"></path></svg> or <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm192.7 220.3c-3 2.5-6.6 3.7-10.2 3.7-4.6 0-9.1-2-12.3-5.8-22.4-26.8-55.3-42.2-90.2-42.2s-67.8 15.4-90.2 42.2c-5.6 6.8-15.7 7.7-22.5 2-6.8-5.7-7.7-15.7-2-22.5C161.7 339.6 203.6 320 248 320s86.3 19.6 114.7 53.8c5.7 6.7 4.8 16.8-2 22.5z"></path></svg> : user happiness }</p>
+<ul>
+<li>change or randomize some internal structure of HTML pages (<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm194.8 170.2C334.3 380.4 292.5 400 248 400s-86.3-19.6-114.8-53.8c-5.7-6.8-4.7-16.9 2-22.5 6.8-5.7 16.9-4.7 22.5 2 22.4 26.9 55.2 42.2 90.2 42.2s67.8-15.4 90.2-42.2c5.7-6.8 15.7-7.7 22.5-2 6.9 5.7 7.8 15.8 2.2 22.5z"></path></svg> )</li>
+<li>sample, limits data displayed in time/quantity (<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg>/ <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm192.7 220.3c-3 2.5-6.6 3.7-10.2 3.7-4.6 0-9.1-2-12.3-5.8-22.4-26.8-55.3-42.2-90.2-42.2s-67.8 15.4-90.2 42.2c-5.6 6.8-15.7 7.7-22.5 2-6.8-5.7-7.7-15.7-2-22.5C161.7 339.6 203.6 320 248 320s86.3 19.6 114.7 53.8c5.7 6.7 4.8 16.8-2 22.5z"></path></svg>)</li>
+<li>use captcha (<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm192.7 220.3c-3 2.5-6.6 3.7-10.2 3.7-4.6 0-9.1-2-12.3-5.8-22.4-26.8-55.3-42.2-90.2-42.2s-67.8 15.4-90.2 42.2c-5.6 6.8-15.7 7.7-22.5 2-6.8-5.7-7.7-15.7-2-22.5C161.7 339.6 203.6 320 248 320s86.3 19.6 114.7 53.8c5.7 6.7 4.8 16.8-2 22.5z"></path></svg>)</li>
+<li>insert all informations into image, remove textual information ( <svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm192.7 220.3c-3 2.5-6.6 3.7-10.2 3.7-4.6 0-9.1-2-12.3-5.8-22.4-26.8-55.3-42.2-90.2-42.2s-67.8 15.4-90.2 42.2c-5.6 6.8-15.7 7.7-22.5 2-6.8-5.7-7.7-15.7-2-22.5C161.7 339.6 203.6 320 248 320s86.3 19.6 114.7 53.8c5.7 6.7 4.8 16.8-2 22.5z"></path></svg> )</li>
+<li>ask authentification before display any information (<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm194.8 170.2C334.3 380.4 292.5 400 248 400s-86.3-19.6-114.8-53.8c-5.7-6.8-4.7-16.9 2-22.5 6.8-5.7 16.9-4.7 22.5 2 22.4 26.9 55.2 42.2 90.2 42.2s67.8-15.4 90.2-42.2c5.7-6.8 15.7-7.7 22.5-2 6.9 5.7 7.8 15.8 2.2 22.5z"></path></svg>)</li>
+<li>add a signature invisible in the content (honey pot) (<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg>/ <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg>/ <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm194.8 170.2C334.3 380.4 292.5 400 248 400s-86.3-19.6-114.8-53.8c-5.7-6.8-4.7-16.9 2-22.5 6.8-5.7 16.9-4.7 22.5 2 22.4 26.9 55.2 42.2 90.2 42.2s67.8-15.4 90.2-42.2c5.7-6.8 15.7-7.7 22.5-2 6.9 5.7 7.8 15.8 2.2 22.5z"></path></svg>)</li>
+<li>slowing at infinite the download of the content (<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm194.8 170.2C334.3 380.4 292.5 400 248 400s-86.3-19.6-114.8-53.8c-5.7-6.8-4.7-16.9 2-22.5 6.8-5.7 16.9-4.7 22.5 2 22.4 26.9 55.2 42.2 90.2 42.2s67.8-15.4 90.2-42.2c5.7-6.8 15.7-7.7 22.5-2 6.9 5.7 7.8 15.8 2.2 22.5z"></path></svg>)</li>
+<li>device/browser fingerprinting (<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> <svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm194.8 170.2C334.3 380.4 292.5 400 248 400s-86.3-19.6-114.8-53.8c-5.7-6.8-4.7-16.9 2-22.5 6.8-5.7 16.9-4.7 22.5 2 22.4 26.9 55.2 42.2 90.2 42.2s67.8-15.4 90.2-42.2c5.7-6.8 15.7-7.7 22.5-2 6.9 5.7 7.8 15.8 2.2 22.5z"></path></svg> )</li>
+<li>pay company to do part of this ex: cloudflare (<svg style="height:0.8em;top:.04em;position:relative;fill:red;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:orange;" viewBox="0 0 576 512"><path d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg> / <svg style="height:0.8em;top:.04em;position:relative;fill:black;" viewBox="0 0 496 512"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm80 168c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm-160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32zm194.8 170.2C334.3 380.4 292.5 400 248 400s-86.3-19.6-114.8-53.8c-5.7-6.8-4.7-16.9 2-22.5 6.8-5.7 16.9-4.7 22.5 2 22.4 26.9 55.2 42.2 90.2 42.2s67.8-15.4 90.2-42.2c5.7-6.8 15.7-7.7 22.5-2 6.9 5.7 7.8 15.8 2.2 22.5z"></path></svg>)</li>
+</ul>
+</div>
+<div id="a-cat-and-mouse-game-2" class="slide section level1">
+<h1>A cat and mouse game (2)</h1>
+<p><strong>How to attack : </strong></p>
+<p>Only one rule, <em>If you see it on your browser, so you can get it</em></p>
+<ul>
+<li>using lot of slave people in parallel (joke!)</li>
+<li>analyze webpage structure and network data</li>
+<li>pay for online tools made by others</li>
+<li>use headless browsers</li>
+<li>use the OCR / IA</li>
+<li>use proxy or TOR</li>
+<li>ask dev community</li>
+<li>use dev package / framework</li>
+<li>use dev package framework + headless browser</li>
+</ul>
 </div>
 <div id="packages" class="slide section level1">
 <h1>Packages</h1>
@@ -165,7 +213,7 @@ html</code></pre></div>
 <pre><code>## {xml_document}
 ## &lt;html&gt;
 ## [1] &lt;head&gt;\n&lt;meta http-equiv=&quot;Content-Type&quot; content=&quot;text/html; charset= ...
-## [2] &lt;body&gt;\n&lt;h1&gt; MA VIE A LA FERME &lt;/h1&gt;\r\n&lt;div class=&quot;ingredients&quot;&gt;\r\ ...</code></pre>
+## [2] &lt;body&gt;\n&lt;h1&gt; MA VIE A LA FERME &lt;/h1&gt;\n&lt;div class=&quot;ingredients&quot;&gt;\n  &lt; ...</code></pre>
 </div>
 </div>
 <div id="extract-some-elements-in-the-html-page" class="slide section level1">
@@ -211,7 +259,7 @@ h1 {background-color: powderblue;}
 <span class="st">  </span><span class="kw">html_children</span>()</code></pre></div>
 <pre><code>## {xml_nodeset (2)}
 ## [1] &lt;b&gt; INGREDIENTS&lt;/b&gt;
-## [2] &lt;ul&gt;\n&lt;li&gt; &amp;gt;1 cochon(s) &lt;/li&gt;\r\n    &lt;li&gt; &amp;gt;1 légume(s) &lt;/li&gt;\r ...</code></pre>
+## [2] &lt;ul&gt;\n&lt;li&gt; &amp;gt;1 cochon(s) &lt;/li&gt;\n    &lt;li&gt; &amp;gt;1 légume(s) &lt;/li&gt;\n   ...</code></pre>
 </div>
 </div>
 <div id="extract-the-type-of-some-elements" class="slide section level1">
@@ -375,10 +423,10 @@ auteur=html <span class="op">%&gt;%</span><span class="st"> </span><span class="
 tib_comments=<span class="kw">tibble</span>(texte,auteur)
 tib_comments</code></pre></div>
 <pre><code>## # A tibble: 2 x 2
-##   texte                                                  auteur           
-##   &lt;chr&gt;                                                  &lt;chr&gt;            
-## 1 Et pour une poule sur un mur qui picoterait du pain d~ Emma, 22 ans, Li~
-## 2 Je vois que vous êtes, telle la petite poule rousse, ~ Michel, 56 ans, ~</code></pre>
+##   texte                                                         auteur    
+##   &lt;chr&gt;                                                         &lt;chr&gt;     
+## 1 Et pour une poule sur un mur qui picoterait du pain dur? c'e… Emma, 22 …
+## 2 Je vois que vous êtes, telle la petite poule rousse, bien ai… Michel, 5…</code></pre>
 </div>
 <div class="right">
 <p>It is actually a good idea to make all this into a fonction that would have the page’s url as intput and the tibble as output:</p>
@@ -394,20 +442,20 @@ tib_comments</code></pre></div>
 
 <span class="kw">extract_comments</span>(<span class="st">&quot;data/blog_de_ginette.htm&quot;</span>)</code></pre></div>
 <pre><code>## # A tibble: 2 x 3
-##   doc             texte                                     auteur        
-##   &lt;chr&gt;           &lt;chr&gt;                                     &lt;chr&gt;         
-## 1 data/blog_de_g~ Et pour une poule sur un mur qui picoter~ Emma, 22 ans,~
-## 2 data/blog_de_g~ Je vois que vous êtes, telle la petite p~ Michel, 56 an~</code></pre>
+##   doc                      texte                                  auteur  
+##   &lt;chr&gt;                    &lt;chr&gt;                                  &lt;chr&gt;   
+## 1 data/blog_de_ginette.htm Et pour une poule sur un mur qui pico… Emma, 2…
+## 2 data/blog_de_ginette.htm Je vois que vous êtes, telle la petit… Michel,…</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">extract_comments</span>(<span class="st">&quot;data/blog_de_jean-marc.htm&quot;</span>)</code></pre></div>
 <pre><code>## # A tibble: 6 x 3
-##   doc             texte                               auteur              
-##   &lt;chr&gt;           &lt;chr&gt;                               &lt;chr&gt;               
-## 1 data/blog_de_j~ Les thons, avec un t comme crocodi~ &quot;Eddie, 76 ans, Sai~
-## 2 data/blog_de_j~ Pourquoi ces thons ne préféraient-~ Yves, 40 ans, Lyon  
-## 3 data/blog_de_j~ Tout ça me fait penser au blog de ~ Roberta, 18 ans, Co~
-## 4 data/blog_de_j~ Je préfère la chanson qui parle de~ Eduardo, 29 ans, Fe~
-## 5 data/blog_de_j~ On ne comprend pas trop cette pass~ Lise, 35 ans, Lyon  
-## 6 data/blog_de_j~ Et pendant ce temps-là, le roi des~ Nadia, 43 ans, Lisi~</code></pre>
+##   doc                        texte                            auteur      
+##   &lt;chr&gt;                      &lt;chr&gt;                            &lt;chr&gt;       
+## 1 data/blog_de_jean-marc.htm Les thons, avec un t comme croc… &quot;Eddie, 76 …
+## 2 data/blog_de_jean-marc.htm Pourquoi ces thons ne préféraie… Yves, 40 an…
+## 3 data/blog_de_jean-marc.htm Tout ça me fait penser au blog … Roberta, 18…
+## 4 data/blog_de_jean-marc.htm Je préfère la chanson qui parle… Eduardo, 29…
+## 5 data/blog_de_jean-marc.htm On ne comprend pas trop cette p… Lise, 35 an…
+## 6 data/blog_de_jean-marc.htm Et pendant ce temps-là, le roi … Nadia, 43 a…</code></pre>
 </div>
 </div>
 <div id="iteration" class="slide section level1">
@@ -439,50 +487,50 @@ list_comments=<span class="kw">map</span>(pages, extract_comments)
 list_comments</code></pre></div>
 <pre><code>## [[1]]
 ## # A tibble: 2 x 3
-##   doc             texte                                     auteur        
-##   &lt;chr&gt;           &lt;chr&gt;                                     &lt;chr&gt;         
-## 1 data/blog_de_g~ Et pour une poule sur un mur qui picoter~ Emma, 22 ans,~
-## 2 data/blog_de_g~ Je vois que vous êtes, telle la petite p~ Michel, 56 an~
+##   doc                      texte                                  auteur  
+##   &lt;chr&gt;                    &lt;chr&gt;                                  &lt;chr&gt;   
+## 1 data/blog_de_ginette.htm Et pour une poule sur un mur qui pico… Emma, 2…
+## 2 data/blog_de_ginette.htm Je vois que vous êtes, telle la petit… Michel,…
 ## 
 ## [[2]]
 ## # A tibble: 6 x 3
-##   doc             texte                               auteur              
-##   &lt;chr&gt;           &lt;chr&gt;                               &lt;chr&gt;               
-## 1 data/blog_de_j~ Les thons, avec un t comme crocodi~ &quot;Eddie, 76 ans, Sai~
-## 2 data/blog_de_j~ Pourquoi ces thons ne préféraient-~ Yves, 40 ans, Lyon  
-## 3 data/blog_de_j~ Tout ça me fait penser au blog de ~ Roberta, 18 ans, Co~
-## 4 data/blog_de_j~ Je préfère la chanson qui parle de~ Eduardo, 29 ans, Fe~
-## 5 data/blog_de_j~ On ne comprend pas trop cette pass~ Lise, 35 ans, Lyon  
-## 6 data/blog_de_j~ Et pendant ce temps-là, le roi des~ Nadia, 43 ans, Lisi~
+##   doc                        texte                            auteur      
+##   &lt;chr&gt;                      &lt;chr&gt;                            &lt;chr&gt;       
+## 1 data/blog_de_jean-marc.htm Les thons, avec un t comme croc… &quot;Eddie, 76 …
+## 2 data/blog_de_jean-marc.htm Pourquoi ces thons ne préféraie… Yves, 40 an…
+## 3 data/blog_de_jean-marc.htm Tout ça me fait penser au blog … Roberta, 18…
+## 4 data/blog_de_jean-marc.htm Je préfère la chanson qui parle… Eduardo, 29…
+## 5 data/blog_de_jean-marc.htm On ne comprend pas trop cette p… Lise, 35 an…
+## 6 data/blog_de_jean-marc.htm Et pendant ce temps-là, le roi … Nadia, 43 a…
 ## 
 ## [[3]]
 ## # A tibble: 4 x 3
-##   doc            texte                               auteur               
-##   &lt;chr&gt;          &lt;chr&gt;                               &lt;chr&gt;                
-## 1 data/blog_de_~ &quot;A quel moment faut-il claquer du ~ Jonas, 37 ans, Stras~
-## 2 data/blog_de_~ Norbert, mon petit chat, ça fait b~ Julie, 34 ans, Saint~
-## 3 data/blog_de_~ L'ambiance doit être sympa quand l~ Mickaël, 23 ans, Glos
-## 4 data/blog_de_~ Vous devez avoir un grain pour écr~ Viviane, 58 ans, Ser~</code></pre>
+##   doc                      texte                          auteur          
+##   &lt;chr&gt;                    &lt;chr&gt;                          &lt;chr&gt;           
+## 1 data/blog_de_norbert.htm &quot;A quel moment faut-il claque… Jonas, 37 ans, …
+## 2 data/blog_de_norbert.htm Norbert, mon petit chat, ça f… Julie, 34 ans, …
+## 3 data/blog_de_norbert.htm L'ambiance doit être sympa qu… Mickaël, 23 ans…
+## 4 data/blog_de_norbert.htm Vous devez avoir un grain pou… Viviane, 58 ans…</code></pre>
 </div>
 <div class="right">
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">tibtot_comments &lt;-<span class="st"> </span>list_comments <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">bind_rows</span>()
 tibtot_comments</code></pre></div>
 <pre><code>## # A tibble: 12 x 3
-##    doc             texte                             auteur               
-##    &lt;chr&gt;           &lt;chr&gt;                             &lt;chr&gt;                
-##  1 data/blog_de_g~ Et pour une poule sur un mur qui~ Emma, 22 ans, Limoges
-##  2 data/blog_de_g~ Je vois que vous êtes, telle la ~ Michel, 56 ans, Renn~
-##  3 data/blog_de_j~ Les thons, avec un t comme croco~ &quot;Eddie, 76 ans, Sain~
-##  4 data/blog_de_j~ Pourquoi ces thons ne préféraien~ Yves, 40 ans, Lyon   
-##  5 data/blog_de_j~ Tout ça me fait penser au blog d~ Roberta, 18 ans, Col~
-##  6 data/blog_de_j~ Je préfère la chanson qui parle ~ Eduardo, 29 ans, Fer~
-##  7 data/blog_de_j~ On ne comprend pas trop cette pa~ Lise, 35 ans, Lyon   
-##  8 data/blog_de_j~ Et pendant ce temps-là, le roi d~ Nadia, 43 ans, Lisie~
-##  9 data/blog_de_n~ &quot;A quel moment faut-il claquer d~ Jonas, 37 ans, Stras~
-## 10 data/blog_de_n~ Norbert, mon petit chat, ça fait~ Julie, 34 ans, Saint~
-## 11 data/blog_de_n~ L'ambiance doit être sympa quand~ Mickaël, 23 ans, Glos
-## 12 data/blog_de_n~ Vous devez avoir un grain pour é~ Viviane, 58 ans, Ser~</code></pre>
+##    doc                        texte                             auteur    
+##    &lt;chr&gt;                      &lt;chr&gt;                             &lt;chr&gt;     
+##  1 data/blog_de_ginette.htm   Et pour une poule sur un mur qui… Emma, 22 …
+##  2 data/blog_de_ginette.htm   Je vois que vous êtes, telle la … Michel, 5…
+##  3 data/blog_de_jean-marc.htm Les thons, avec un t comme croco… &quot;Eddie, 7…
+##  4 data/blog_de_jean-marc.htm Pourquoi ces thons ne préféraien… Yves, 40 …
+##  5 data/blog_de_jean-marc.htm Tout ça me fait penser au blog d… Roberta, …
+##  6 data/blog_de_jean-marc.htm Je préfère la chanson qui parle … Eduardo, …
+##  7 data/blog_de_jean-marc.htm On ne comprend pas trop cette pa… Lise, 35 …
+##  8 data/blog_de_jean-marc.htm Et pendant ce temps-là, le roi d… Nadia, 43…
+##  9 data/blog_de_norbert.htm   &quot;A quel moment faut-il claquer d… Jonas, 37…
+## 10 data/blog_de_norbert.htm   Norbert, mon petit chat, ça fait… Julie, 34…
+## 11 data/blog_de_norbert.htm   L'ambiance doit être sympa quand… Mickaël, …
+## 12 data/blog_de_norbert.htm   Vous devez avoir un grain pour é… Viviane, …</code></pre>
 </div>
 </div>
 <div id="manipulate-strings-package-stringr" class="slide section level1">
@@ -564,25 +612,25 @@ tibtot_comments</code></pre></div>
 <p>For instance, to detect all voyels in the string:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="st">&quot;youp la boum&quot;</span>,
              <span class="st">&quot;[aeiou]&quot;</span>)</code></pre></div>
-<div id="htmlwidget-e9e1d371737fcd7085b7" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-e9e1d371737fcd7085b7">{"x":{"html":"<ul>\n  <li>y<span class='match'>o<\/span><span class='match'>u<\/span>p l<span class='match'>a<\/span> b<span class='match'>o<\/span><span class='match'>u<\/span>m<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-08d060a7bb7786117371" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-08d060a7bb7786117371">{"x":{"html":"<ul>\n  <li>y<span class='match'>o<\/span><span class='match'>u<\/span>p l<span class='match'>a<\/span> b<span class='match'>o<\/span><span class='match'>u<\/span>m<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 </div>
 <div class="right">
 <p>See the difference:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="st">&quot;A132-f445-e34-C308-M9-E18&quot;</span>,
              <span class="st">&quot;[308]&quot;</span>)</code></pre></div>
-<div id="htmlwidget-22c65108d62b761fc72e" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-22c65108d62b761fc72e">{"x":{"html":"<ul>\n  <li>A1<span class='match'>3<\/span>2-f445-e<span class='match'>3<\/span>4-C<span class='match'>3<\/span><span class='match'>0<\/span><span class='match'>8<\/span>-M9-E1<span class='match'>8<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-f10d1069a312cb8c3180" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-f10d1069a312cb8c3180">{"x":{"html":"<ul>\n  <li>A1<span class='match'>3<\/span>2-f445-e<span class='match'>3<\/span>4-C<span class='match'>3<\/span><span class='match'>0<\/span><span class='match'>8<\/span>-M9-E1<span class='match'>8<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="st">&quot;A132-f445-e34-C308-M9-E18&quot;</span>,
              <span class="st">&quot;308&quot;</span>)</code></pre></div>
-<div id="htmlwidget-9080d0aea5976deb4986" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-9080d0aea5976deb4986">{"x":{"html":"<ul>\n  <li>A132-f445-e34-C<span class='match'>308<\/span>-M9-E18<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-f66a5c8f26dfbe56bd63" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-f66a5c8f26dfbe56bd63">{"x":{"html":"<ul>\n  <li>A132-f445-e34-C<span class='match'>308<\/span>-M9-E18<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 <p><strong>Any character</strong> can be noted <code>.</code>.</p>
 <p>For instance, the pattern “any character followed by a letter” can be searched through</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="st">&quot;32a-B44-552-98eEf&quot;</span>,
              <span class="st">&quot;.[a-z]&quot;</span>)</code></pre></div>
-<div id="htmlwidget-e6a16b36dd28e9cbd06c" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-e6a16b36dd28e9cbd06c">{"x":{"html":"<ul>\n  <li>3<span class='match'>2a<\/span>-B44-552-9<span class='match'>8e<\/span><span class='match'>Ef<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-44168c642bd104032b23" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-44168c642bd104032b23">{"x":{"html":"<ul>\n  <li>3<span class='match'>2a<\/span>-B44-552-9<span class='match'>8e<\/span><span class='match'>Ef<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 <div id="regexp-special-characters" class="slide section level1">
@@ -595,8 +643,8 @@ tibtot_comments</code></pre></div>
 <p>To find dots, question marks, exclamation marks:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="kw">c</span>(<span class="st">&quot;Allô, John-John? Ici Joe la frite. Surprise!&quot;</span>),
              <span class="st">&quot;[</span><span class="ch">\\</span><span class="st">.</span><span class="ch">\\</span><span class="st">?</span><span class="ch">\\</span><span class="st">!]&quot;</span>)</code></pre></div>
-<div id="htmlwidget-c82a0fe723524cf7f7c9" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-c82a0fe723524cf7f7c9">{"x":{"html":"<ul>\n  <li>Allô, John-John<span class='match'>?<\/span> Ici Joe la frite<span class='match'>.<\/span> Surprise<span class='match'>!<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-82656397accb7a234c29" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-82656397accb7a234c29">{"x":{"html":"<ul>\n  <li>Allô, John-John<span class='match'>?<\/span> Ici Joe la frite<span class='match'>.<\/span> Surprise<span class='match'>!<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 <p>Note that we don’t write <code>&quot;[.?!]&quot;</code>, but <code>&quot;[\\.\\?\\!]&quot;</code>.</p>
 </div>
 <div class="right">
@@ -611,21 +659,21 @@ tibtot_comments</code></pre></div>
 <p>For instance, all characters that are neither a vowel nor a blank space:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="st">&quot;turlututu chapeau pointu&quot;</span>,
              <span class="st">&quot;[^aeiou ]&quot;</span>)</code></pre></div>
-<div id="htmlwidget-87f7d922737a3b0f6e00" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-87f7d922737a3b0f6e00">{"x":{"html":"<ul>\n  <li><span class='match'>t<\/span>u<span class='match'>r<\/span><span class='match'>l<\/span>u<span class='match'>t<\/span>u<span class='match'>t<\/span>u <span class='match'>c<\/span><span class='match'>h<\/span>a<span class='match'>p<\/span>eau <span class='match'>p<\/span>oi<span class='match'>n<\/span><span class='match'>t<\/span>u<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-43ca62fc60ef267da45c" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-43ca62fc60ef267da45c">{"x":{"html":"<ul>\n  <li><span class='match'>t<\/span>u<span class='match'>r<\/span><span class='match'>l<\/span>u<span class='match'>t<\/span>u<span class='match'>t<\/span>u <span class='match'>c<\/span><span class='match'>h<\/span>a<span class='match'>p<\/span>eau <span class='match'>p<\/span>oi<span class='match'>n<\/span><span class='match'>t<\/span>u<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 </div>
 <div class="right">
 <p>Ranges of characters are noted <code>[...-...]</code></p>
 <p>For instance, all numbers between 1 and 5:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="kw">c</span>(<span class="st">&quot;3 petits cochons&quot;</span>, <span class="st">&quot;101 dalmations&quot;</span>, <span class="st">&quot;7 nains&quot;</span>),
              <span class="st">&quot;[1-5]&quot;</span>)</code></pre></div>
-<div id="htmlwidget-56da1d81080e2d393d02" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-56da1d81080e2d393d02">{"x":{"html":"<ul>\n  <li><span class='match'>3<\/span> petits cochons<\/li>\n  <li><span class='match'>1<\/span>0<span class='match'>1<\/span> dalmations<\/li>\n  <li>7 nains<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-93056cbc21b60683854b" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-93056cbc21b60683854b">{"x":{"html":"<ul>\n  <li><span class='match'>3<\/span> petits cochons<\/li>\n  <li><span class='match'>1<\/span>0<span class='match'>1<\/span> dalmations<\/li>\n  <li>7 nains<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 <p>… or all those between A-F or a-e:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="st">&quot;A132-f445-e34-C308-M2244-Z449-E18&quot;</span>,
              <span class="st">&quot;[A-Fa-e]&quot;</span>)</code></pre></div>
-<div id="htmlwidget-6e7989ca278cc1d45661" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-6e7989ca278cc1d45661">{"x":{"html":"<ul>\n  <li><span class='match'>A<\/span>132-f445-<span class='match'>e<\/span>34-<span class='match'>C<\/span>308-M2244-Z449-<span class='match'>E<\/span>18<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-4e581485d42f0d474779" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-4e581485d42f0d474779">{"x":{"html":"<ul>\n  <li><span class='match'>A<\/span>132-f445-<span class='match'>e<\/span>34-<span class='match'>C<\/span>308-M2244-Z449-<span class='match'>E<\/span>18<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 <div id="regexp-predefined-classes" class="slide section level1">
@@ -651,20 +699,20 @@ tibtot_comments</code></pre></div>
 <p><strong>zero or one</strong>: the pattern of interest is followed by <code>?</code>.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="kw">c</span>(<span class="st">&quot;file1990-fileB1990-fileAbis2005&quot;</span>),
              <span class="st">&quot;file</span><span class="ch">\\</span><span class="st">d?&quot;</span>)</code></pre></div>
-<div id="htmlwidget-baad5bed8c8570aaff66" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-baad5bed8c8570aaff66">{"x":{"html":"<ul>\n  <li><span class='match'>file1<\/span>990-<span class='match'>file<\/span>B1990-<span class='match'>file<\/span>Abis2005<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-db07641158fd108a5a45" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-db07641158fd108a5a45">{"x":{"html":"<ul>\n  <li><span class='match'>file1<\/span>990-<span class='match'>file<\/span>B1990-<span class='match'>file<\/span>Abis2005<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 </div>
 <div class="right">
 <p><strong>zero or more</strong>: O the pattern of interest is followed by <code>*</code>.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="kw">c</span>(<span class="st">&quot;file1990-fileB1990-fileAbis2005&quot;</span>),
              <span class="st">&quot;file</span><span class="ch">\\</span><span class="st">d*&quot;</span>)</code></pre></div>
-<div id="htmlwidget-74b34cee9eec5bcb10e0" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-74b34cee9eec5bcb10e0">{"x":{"html":"<ul>\n  <li><span class='match'>file1990<\/span>-<span class='match'>file<\/span>B1990-<span class='match'>file<\/span>Abis2005<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-64f6adae9400526dd521" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-64f6adae9400526dd521">{"x":{"html":"<ul>\n  <li><span class='match'>file1990<\/span>-<span class='match'>file<\/span>B1990-<span class='match'>file<\/span>Abis2005<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 <p><strong>one or more</strong> : the pattern of interest is followed by <code>+</code>.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str_view_all</span>(<span class="kw">c</span>(<span class="st">&quot;file1990-fileB1990-fileAbis2005&quot;</span>),
              <span class="st">&quot;file</span><span class="ch">\\</span><span class="st">d+&quot;</span>)</code></pre></div>
-<div id="htmlwidget-70819fb14649b9681609" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-70819fb14649b9681609">{"x":{"html":"<ul>\n  <li><span class='match'>file1990<\/span>-fileB1990-fileAbis2005<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-09858239ec38853bf7e8" style="width:960px;height:auto;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-09858239ec38853bf7e8">{"x":{"html":"<ul>\n  <li><span class='match'>file1990<\/span>-fileB1990-fileAbis2005<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 
