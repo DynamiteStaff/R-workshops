@@ -81,6 +81,8 @@ vancouver = unique(vanc$city)
 montreal = unique(mont$city)
 
 df = rbind(mont, toro, vanc)
+
+head(toro)
 ```
 
 Cleaning here is choosing how to make the data at hand in line with the purpose of the analysis.
@@ -110,35 +112,15 @@ df = data.frame(df,lookup[match(df$property_type, lookup$type),] )
 dfh = subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood))
 dfh$property_group <- NULL
 dfhu = dfh[!duplicated(dfh$host_id),]
-dim(df)
-dim(dfhu)
+dim(dfh)[1] - dim(df)[1]
+dim(dfhu)[1] - dim(dfh)[1]
 ```
 
 then we want to keep current listings, i.e. whose last review dates back from less than 2 years for example
 ```{r cleaninginactive}
 dfhu$year = as.numeric(substr(dfhu$last_review, 1, 4))
-
- # pal <- colorFactor(
- #    palette =  brewer.pal(n=10, 'Blues'),
- #    domain = dfhu$year
- #  )
-
-# leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
-#   addCircleMarkers(
-#     data = dfhu,
-#         radius = ~ sqrt(0.07 * numPrice),
-#     lat = ~ latitude,
-#     color = ~pal(year),
-#     stroke = FALSE,
-#     fillOpacity = 0.5,
-#     layerId = ~ id,
-#     lng = ~ longitude
-#   ) %>%  addLegend(pal = pal, position = 'topleft', values = dfhu$year)
-# 
-
 dfhun = subset(dfhu, year >= 2017)
-dim(df)[1]
-dim(dfhun)[1]
+dim(dfhun)[1] - dim(dfhu)[1]
 ```
 
 Then, we want to use a price variable that is usable (e.g. numeric) and to normalise the price by a measure of size: the number of rooms because square feet is mostly not filled by hosts. This implies to remove the small number of shared rooms
@@ -149,12 +131,15 @@ final = subset(dfhun, room_type != "Shared room")
 
 final$rooms = ifelse(final$bedrooms == 0, 1, final$bedrooms)
 final$priceperroom = as.numeric(ifelse(final$room_type == T,  final$numPrice,  final$numPrice / final$rooms))
+
+
+dim(final) / dim(df)
 ```
 
 Let's retrieve census shape files and data from the census API
 ```{r prepmap, include=FALSE}
 
-city = "montreal"
+city = "toronto"
 
 
 if(city == "toronto"){
@@ -345,7 +330,7 @@ tractTable <- diversity_index(censuscode)
      select(GeoUID, CSD_UID, name = `Region.Name`, ctpop = Population,
            csdpop = Population.1, ctei = Ei, csdei = Ei.1)  %>%
     filter(csdpop > 1000) %>%
-     group_by(GeoUID, CSD_UID) %>%
+     group_by(CSD_UID,GeoUID) %>%
     #  mutate_at(csdei, funs(ifelse(is.nan(.),0,.))) %>%
    mutate(smallh = ifelse(csdei == 0, NA, (ctpop*(csdei - ctei))/(csdei*csdpop)) ) %>%
     ungroup() %>%
