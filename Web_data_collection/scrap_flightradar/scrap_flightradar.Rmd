@@ -116,6 +116,7 @@ Load the page in the selenium server
 
 ```{r, message=FALSE}
 remDr$navigate("https://www.flightradar24.com/data/airports/bod/arrivals")
+Sys.sleep(5) # time to load !
 ```
 
 Building XPATH correct expression could be difficult. A good way to test validity of your XPATH expressions was to use an interactive way, with web developper console. 
@@ -139,8 +140,7 @@ Great, this query return only the valid button. We use later this query to stop 
 Now we try to build this query using RSelenium with `findElement()` function : 
 
 ```{r, message=FALSE}
-loadmorebutton <- remDr$findElements(using = 'xpath', "//button[@class='btn btn-table-action btn-flights-load' and contains(@style,'display: none;')]")
-Sys.sleep(5) # time to load !
+loadmorebutton <- remDr$findElements(using = 'xpath', "//button[@class='btn btn-table-action btn-flights-load' and not(contains(@style,'display: none;'))]")
 ```
 
 Display the text of each element retrieved by function `findElements()` using the `getElementText() function`
@@ -149,8 +149,11 @@ Display the text of each element retrieved by function `findElements()` using th
 unlist(lapply(loadmorebutton, function(x){x$getElementText()}))
 ```
 
-Now, how to simulate a clic ?
+Now, how to simulate a clic on one of this button ?
 
+```{r, message=FALSE}
+
+```
 
 What happen when the 
 

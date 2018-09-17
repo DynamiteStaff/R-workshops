@@ -1,6 +1,6 @@
 --- 
 title: "Web scraping with R"
-author: "Lise Vaudor / Sébastien Rey-Coyrehourcq / Fabien Pfender"
+author: "Lise Vaudor / Sébastien Rey-Coyrehourcq / Fabien Pfaender"
 output:
   slidy_presentation:
     css: css/styles.css
@@ -23,21 +23,26 @@ library(rvest)
 
 - Webscraping, what is this ?
 - Some ethicals considerations
-- A cat and mouse game
+- A cat and mouse game :) 
+- An HTML page
+- How manipulate data efficiently (purrr, string)
+- How-to extract link & data from HTML (Regex, CSS, XPath)
+- Use API :(
 
 # Webscraping 
 
-bla bla tous
+- bla bla Webscraping sauce sauvage
+- bla bla Webscraping avec API
 
 # Ethics, some elements of reflexion.
 
-bla bla seb
+bla bla Seb 
 
-# A cat and mouse game (1)
+# A <img src='images/noun_Cat_549889.svg' width="40"> and <img src='images/noun_Mouse_549960.svg' width="40"> game (1)
 
 **How to defend from webscraping : **
 
-{`r fa("star", fill = "orange")` : cost, difficulty to implement } , {`r fa("star", fill = "red")` : dificulty to bypass } , { `r fa("smile", fill = "black")` or `r fa("frown", fill = "black")`  : user happiness }
+Legend : {`r fa("star", fill = "orange")` : cost, difficulty to implement } , {`r fa("star", fill = "red")` : dificulty to bypass } , { `r fa("smile", fill = "black")` or `r fa("frown", fill = "black")`  : user happiness }
 
 - change or randomize some internal structure of HTML pages (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")` )
 - sample, limits data displayed in time/quantity (`r fa("star", fill = "red")` `r fa("star", fill = "red")` `r fa("star", fill = "red")`/ `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")`)
@@ -49,21 +54,26 @@ bla bla seb
 - device/browser fingerprinting (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`  )
 - pay company to do part of this ex: cloudflare (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
 
-# A cat and mouse game (2)
+# A <img src='images/noun_Cat_549889.svg' width="40"> and <img src='images/noun_Mouse_549960.svg' width="40"> game (2)
 
 **How to attack : **
 
-Only one rule, *If you see it on your browser, so you can get it*
+One rule : *If you see it on your browser, so you can get it*
 
-- using lot of slave people in parallel (joke!)
-- analyze webpage structure and network data
-- pay for online tools made by others
-- use headless browsers
-- use the OCR / IA 
-- use proxy or TOR
-- ask dev community
-- use dev package / framework
-- use dev package framework + headless browser
+- Basics : 
+    - using lot of slave people in parallel (joke!)
+    - analyze webpage structure and network data
+    - pay for online tools made by others
+    - ask dev community
+   
+- Advanced :
+    - use User-Agent
+    - use the OCR / IA 
+    - use Proxy/VPN or TOR
+    - use cookie/js injection
+    - use headless browsers 
+    - use a framework (=> Scrapy !)
+    - use a framework + headless browser
 
 # Packages
 
@@ -80,7 +90,7 @@ Only one rule, *If you see it on your browser, so you can get it*
 
 ![](images/step1_process.png)
 
-**Web scraping**
+**HTML Document**
 
 Understanding html documents' structure
 

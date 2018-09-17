@@ -122,3 +122,5 @@ small {
     float: left;
     width: 50%;
 }
+
+.fa { display:inline; }
