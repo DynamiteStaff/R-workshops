@@ -1,4 +1,4 @@
-setwd("~/Documents/R-workshops/Modeling/syllabus")
+setwd("~/GitHub/R-workshops/Modeling/syllabus")
 
 library(githubinstall)
 library(rmapzen)
@@ -455,7 +455,6 @@ graph_distributions_for_year <- function(year) {
 graph_distributions_for_year(2016)
 
 
-
 data(segdata)
 grd <- GridTopology(cellcentre.offset=c(0.5,0.5),
                     cellsize=c(1,1), cells.dim=c(10,10))
@@ -479,12 +478,26 @@ toronto_tracts <- as_Spatial(toronto_tr)
 rbnb_pts@proj4string <-CRS("+proj=longlat +datum=WGS84")
 toronto_tracts@proj4string <-CRS("+proj=longlat +datum=WGS84")
 plot(toronto_tracts, border = "grey")
-points(rbnb_pts, col = "red", cex = 1)
+points(rbnb_pts, col = "red", cex = 0.2, pch = 16)
 
-idata <- st_intersection(rbnb_pts, toronto_tracts)
+class(toronto_tracts)
+class(rbnb_pts)
 
+library(Hmisc)
+PTS <- as(rbnb_pts, "sf")
+POLY <- as(toronto_tracts, "sf")
+idata <- st_intersection(PTS, POLY)
+colnames(idata)
+rbnbPerTract <- idata %>%
+  #group_by(CSD_UID) %>%
+  count(GeoUID, sort = TRUE) %>%
+  select(GeoUID, n)
 
-spseg(city_data[,c("latitude", "longitude")], 
-      city_data[,c("priceperroom")])
+idata$distPPR = cut2(idata$priceperroom, g=10)
+rbnbPerTract <- table(idata$GeoUID, idata$distPPR)
+missingTracts = matrix(x = )
+rbnbPerAllTract <- rbind(rbnbPerTract, missingTracts)
+dim(rbnbPerTract)
+dim(toronto_tracts@data)
 
-
+spseg(toronto_tracts, rbnbPerTract)
