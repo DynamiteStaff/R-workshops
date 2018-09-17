@@ -1,0 +1,163 @@
+---
+title: "ScrapFlightRadar"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r, message=FALSE}
+library(rvest)
+library(tidyverse)
+library(knitr)
+```
+
+# Scrape all departures or arrivals from FlightRadar website
+
+We see two methods to capture departures and arrivals data for airport on FlightRadar website, using an headless browser, and using XHR request.
+
+For each airports page, FlightRadar website offer the possibility to see general informations, departures and arrivals flights information. For this tutorial we try to scrape the [Bordeaux Mérignac Airport BOD](https://www.flightradar24.com/data/airports/bod/) departures data [page](https://www.flightradar24.com/data/airports/bod/departures) and arrival flights [page](https://www.flightradar24.com/data/airports/bod/arrivals)
+
+As you could see if you go to departures pages, you have two interesting buttons, one at the top of the page, and one at the bottom of the page. 
+
+<img src='images/button_earlier.png'/>
+<img src='images/button_later.png'/>
+
+To display all data available (something like 24h of past and future departures/arrivals), we simulate multiples clic on this two buttons, and we stop this behavior only when this buttons disapear from the page.
+
+## Using Selenium headless browser
+
+Due to some defence created by webmaster to protect some data, you need to simulate an human behavior, if possible using a real browser. 
+
+
+To be short, [Selenium](https://docs.seleniumhq.org/) is a multi-tools project focusing on task automation to test web aplication. It works with lots of Internet browsers, and lot of operating systems.  
+
+In short, Selenium Webdriver give to developper an API to interact/pilot an headless internet browser without opening it. So, you, developper, you could use this API with your favorite langage (Java, Python, R, etc.) to sent commands to browser in order to navigate, move your mouse, click on DOM element, sent keyboard output to input forms, inject javascript, capture image of the page, extract html, etc.
+
+First, you need to install and load RSelenium package, the R bindings library for Selenium Webdriver API : 
+
+```R
+install.packages("devtools")
+devtools::install_github("ropensci/RSelenium")
+```
+Depending of your existing configuration and OS you probably need to install some dependent software packages.
+
+```{r, message=FALSE}
+library(RSelenium)
+```
+
+It's possible to use directly Selenium with your browser, but we prefer to use directly a server version. Why ? Because using server version of Selenium, you have the possibility a) to sent command on local or remote server running Selenium b) which run a different browsers and/or OS, c) to distribute tests over multiple machines.
+
+### Run a Selenium server
+
+Install Docker on your OS using docker documentation. 
+
+When it's done, `pull and run` [one of](https://github.com/SeleniumHQ/docker-selenium) Docker Selenium-Server image using terminal. For this tutorial we use Firefox !
+
+```bash
+sudo docker run -d -p 4445:4444 selenium/standalone-firefox:2.54.0
+```
+
+Type `sudo docker ps` to see if server correctly run and listen to port 4445.
+
+### Connect to Selenium Server
+
+Connect and open the browser on the server.
+
+```{r, message=FALSE}
+remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4445L)
+remDr$open()
+```
+
+### Basic command for RSelenium
+
+[Johnd Harrison](https://github.com/johndharrison), the creator and first commiter of RSelenium binding library for Selenium, create a big tutorial with lots of commands covered : https://rpubs.com/johndharrison/RSelenium-Basics
+
+Some of them : 
+
+- `remDr$maxWindowSize()` : maximize windows of the browser.
+- `remDr$navigate("https://www.google.fr")` : navigate to url
+- `remDr$screenshot(display = TRUE)` : take a screenshoot of the webpage and display it in RStudio Viewer
+- `remDr$findElement(...)` : Find and element in the html structure, using different method : xpath, css, etc.
+- `remDr$executeScript(...`) : Execute a js script in the remote browser
+
+### Analyze html page structure !
+
+Open `Web Developer tools` in your favorite browser on the arrivals webpage of BOD : `https://www.flightradar24.com/data/airports/bod/arrivals`
+
+We investigate what happens in the html code when the load earlier or load later button . Why we do that ? To understand how we could automate things.
+
+Because we want to automate clic on this two buttons, so we need to understand WHEN we need to stop clicking :) If we clic an infinite number of time, an error probably trigger when one of the two button disapear.
+
+Select the Selector tools (sic) and click on the load earlier flights button.
+
+<img src='images/webdeveloper.png'/>
+
+If you clic the right thing, normaly you have highlighted some part of the html code which interest us :
+
+<img src='images/selected_earlier.png'/>
+
+Now, Iif you highlight and clic with the web tool selector on the load later flights button, you have something like that : 
+
+<img src='images/selected_later.png'/>
+
+Things are not so very differences between this two buttons objects. It seems that only the timestamp, the data page number and the button text change ...
+
+Hightlight and clic one more time on the *load earlier flights* button. Clic another time to load a new page of data. You see that the html code change during the data load to desactivate clic on the button. Not so interesting. Now repeat the clic and stop only when the button disapear on your screen. 
+
+<img src='images/button_disapear.png'/>
+
+Great, a new css style attribute appear to indicate that now this button object is hidden : `style="display: none;"`
+
+How could we re-use this important information during data harvesting to detect if the button is activated/desactivated ? The best solution was to use XPATH query !
+
+Load the page in the selenium server 
+
+```{r, message=FALSE}
+remDr$navigate("https://www.flightradar24.com/data/airports/bod/arrivals")
+```
+
+Building XPATH correct expression could be difficult. A good way to test validity of your XPATH expressions was to use an interactive way, with web developper console. 
+
+Clic on console tab :
+
+<img src='images/console.png'/>
+
+Type this in the console : `$x("//button[@class='btn btn-table-action btn-flights-load']")`
+
+The result is an interactive array you could develop as a tree if you want.
+
+<img src='images/console_with_xpath.png'/>
+
+Clic Clic Clic to make disapear one of the loading button, and now we trying to select only the available button. XPATH understand boolean operator (or,and, etc.) so we filter by `@class` and `style` :
+
+`$x("//button[@class='btn btn-table-action btn-flights-load' and contains(@style,'display: none;')]")`
+
+Great, this query return only the valid button. We use later this query to stop our loop of infernal button clic.
+
+Now we try to build this query using RSelenium with `findElement()` function : 
+
+```{r, message=FALSE}
+loadmorebutton <- remDr$findElements(using = 'xpath', "//button[@class='btn btn-table-action btn-flights-load' and contains(@style,'display: none;')]")
+Sys.sleep(5) # time to load !
+```
+
+Display the text of each element retrieved by function `findElements()` using the `getElementText() function`
+
+```{r, message=FALSE, delay = TRUE}
+unlist(lapply(loadmorebutton, function(x){x$getElementText()}))
+```
+
+Now, how to simulate a clic ?
+
+
+What happen when the 
+
+### Exercices
+
+Create a function to do that :)
+
+## Using XHR
+
+https://www.w3schools.com/js/js_json_http.asp

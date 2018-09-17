@@ -1,11 +1,16 @@
 --- 
-title: Web scraping with R
-author: Lise Vaudor
-output: 
+title: "Web scraping with R"
+author: "Lise Vaudor / Sébastien Rey-Coyrehourcq / Fabien Pfender"
+output:
   slidy_presentation:
     css: css/styles.css
-    footer: "Web scraping: tools"
+    footer: 'Web scraping: tools'
+  ioslides_presentation: default
 ---
+
+```{r load_packages, message=FALSE, warning=FALSE, include=FALSE} 
+library(fontawesome)
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
@@ -14,6 +19,51 @@ library(purrr)
 library(rvest)
 ```
 
+# Today !
+
+- Webscraping, what is this ?
+- Some ethicals considerations
+- A cat and mouse game
+
+# Webscraping 
+
+bla bla tous
+
+# Ethics, some elements of reflexion.
+
+bla bla seb
+
+# A cat and mouse game (1)
+
+**How to defend from webscraping : **
+
+{`r fa("star", fill = "orange")` : cost, difficulty to implement } , {`r fa("star", fill = "red")` : dificulty to bypass } , { `r fa("smile", fill = "black")` or `r fa("frown", fill = "black")`  : user happiness }
+
+- change or randomize some internal structure of HTML pages (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")` )
+- sample, limits data displayed in time/quantity (`r fa("star", fill = "red")` `r fa("star", fill = "red")` `r fa("star", fill = "red")`/ `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")`)
+- use captcha (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")`)
+- insert all informations into image, remove textual information  ( `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")` )
+- ask authentification before display any information (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
+- add a signature invisible in the content (honey pot) (`r fa("star", fill = "red")` `r fa("star", fill = "red")`/ `r fa("star", fill = "orange")` `r fa("star", fill = "orange")`/ `r fa("smile", fill = "black")`)
+- slowing at infinite the download of the content (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
+- device/browser fingerprinting (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`  )
+- pay company to do part of this ex: cloudflare (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
+
+# A cat and mouse game (2)
+
+**How to attack : **
+
+Only one rule, *If you see it on your browser, so you can get it*
+
+- using lot of slave people in parallel (joke!)
+- analyze webpage structure and network data
+- pay for online tools made by others
+- use headless browsers
+- use the OCR / IA 
+- use proxy or TOR
+- ask dev community
+- use dev package / framework
+- use dev package framework + headless browser
 
 # Packages
 
