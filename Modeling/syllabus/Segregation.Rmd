@@ -61,7 +61,8 @@ More generally, we want to show how the two shed complementary lights on spatial
 ### Case study: urban segregation with scraped AirBnB data
 
 ```{r censussettings , include=FALSE}
-options(cancensus.api_key = "CensusMapper_5d949dee7f3e2546720b77d6ef08072e")
+options(cancensus.api_key = "CensusMapper_5d949dee7f3e2546720b77d6ef08072e",
+        cancensus.cache_path = 'cancensusCacheDir')
 ct = "35535"
 cm = "24462"
 cv = "59933"
@@ -154,7 +155,7 @@ final$priceperroom = as.numeric(ifelse(final$room_type == T,  final$numPrice,  f
 Let's retrieve census shape files and data from the census API
 ```{r prepmap, include=FALSE}
 
-city = "montreal"
+city = "toronto"
 
 
 if(city == "toronto"){
@@ -357,11 +358,12 @@ tractTable <- diversity_index(censuscode)
    cma.csd <- get_census("CA16", regions=list(CMA=censuscode), 
                         vectors = minority_vectors, level = "CSD",
                         labels = "short", geo_format = NA)
-# 
-#    segdata <- cma.csd %>% 
-#     left_join(cma.h,  by = c("CSD_UID"="GeoUID")) %>% 
-#     mutate()
-#   
+
+  segdata <- cma.csd %>%
+    left_join(cma.h,  by = c("GeoUID"="CSD_UID")) %>%
+    mutate()
+
+  segdata2 = as.data.frame(segdata)
  
 ```
 
@@ -374,38 +376,38 @@ tractTable <- diversity_index(censuscode)
    )
       pal2 <- colorQuantile(
      palette =  'Reds',
-     domain = cma.h$H,
+     domain = segdata2$H,
      n = 10)
 
-#    map <- leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
-#       addPolygons(
-#       data = csd.csd.geo,
-#       color = 'black',
-#       fill = F,
-#       weight = 0.7,
-#       opacity = 0.9
-#     ) %>% addPolygons(
-#       data = cma.h,
-#       color =  ~ pal2(H),
-#       fill = ~ pal2(H),
-#        weight = 0.4
-#     ) %>%
-#   #addCircleMarkers(
-#   #   data = city_data,
-#   #       radius = ~ sqrt(4 * rooms),
-#   #   lat = ~ latitude,
-#   #   fillColor = ~ pal(priceperroom),
-#   #   color = 'black',
-#   #   stroke = T,
-#   #   fillOpacity = 0.5,
-#   #  weight = 0.1,
-#   #   layerId = ~ id,
-#   #   lng = ~ longitude
-#   # ) %>% 
-# # addLegend(pal = pal, position = 'topleft', values = city_data$priceperroom)%>% 
-#   addLegend(pal = pal2, position = 'topleft', values = cma.h$H,n = 10)
-#  
-#    map
+   map <- leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
+      addPolygons(
+      data = csd.csd.geo,
+      color = 'black',
+      fill = F,
+      weight = 0.7,
+      opacity = 0.9
+    ) %>% addPolygons(
+      data = segdata2,
+      color =  ~ pal2(H),
+      fill = ~ pal2(H),
+       weight = 0.4
+    ) %>%
+addCircleMarkers(
+  data = city_data,
+      radius = ~ sqrt(4 * rooms),
+  lat = ~ latitude,
+  fillColor = ~ pal(priceperroom),
+  color = 'black',
+  stroke = T,
+  fillOpacity = 0.5,
+ weight = 0.1,
+  layerId = ~ id,
+  lng = ~ longitude
+) %>%
+addLegend(pal = pal, position = 'topleft', values = city_data$priceperroom)%>%
+  addLegend(pal = pal2, position = 'topleft', values = cma.h$H,n = 10)
+
+   map
 ```
 
 
