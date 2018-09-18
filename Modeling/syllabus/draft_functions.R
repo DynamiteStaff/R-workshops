@@ -88,7 +88,7 @@ dim(final) / dim(df)
 
 
 
-city = "toronto"
+city = "montreal"
 
 
 if(city == "toronto"){
@@ -470,6 +470,24 @@ print(xx1, digits = 3)
 geoid = as.character(csd.csd.geo[csd.csd.geo$name == "Toronto (C)","GeoUID"])[1]
 toronto_tr = csd.geo[csd.geo$CSD_UID == geoid,]
 head(toronto_tr)
+toronto_tr$vacancy = (toronto_tr$Dwellings - toronto_tr$Households) / toronto_tr$Dwellings
+summary(toronto_tr$vacancy)  
+
+
+#############aggregate airbnb into vancouver tracts.
+csd.csd.geo <- get_census_geometry("CA16", regions=list(CSD=cv), 
+                                   level = "CSD", geo_format = "sf", )
+csd.geo <- get_census_geometry("CA16", regions=list(CSD=cv), 
+                               level = "CT", geo_format = "sf")
+unique(csd.csd.geo$name)
+geoid = as.character(csd.csd.geo[csd.csd.geo$name == "Vancouver (CY)","GeoUID"])[1]
+vancouver_tr = csd.geo[csd.geo$CSD_UID == geoid,]
+head(vancouver_tr)
+vancouver_tr$vacancy = (vancouver_tr$Dwellings - vancouver_tr$Households) / vancouver_tr$Dwellings
+summary(vancouver_tr$vacancy)  
+plot(vancouver_tr)
+
+save(toronto_tr, vancouver_tr, file="cityTractsWithPopAndVacancy.RData")
 
 library(rgdal)
 rbnb_pts <- city_data 
