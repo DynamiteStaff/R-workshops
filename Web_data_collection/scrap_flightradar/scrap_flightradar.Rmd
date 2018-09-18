@@ -4,7 +4,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, error=TRUE)
+
 ```
 
 ```{r, message=FALSE}
@@ -117,6 +118,7 @@ Load the page in the selenium server
 ```{r, message=FALSE}
 remDr$navigate("https://www.flightradar24.com/data/airports/bod/arrivals")
 Sys.sleep(5) # time to load !
+remDr$screenshot(display = TRUE)
 ```
 
 Building XPATH correct expression could be difficult. A good way to test validity of your XPATH expressions was to use an interactive way, with web developper console. 
@@ -145,22 +147,99 @@ loadmorebutton <- remDr$findElements(using = 'xpath', "//button[@class='btn btn-
 
 Display the text of each element retrieved by function `findElements()` using the `getElementText() function`
 
-```{r, message=FALSE, delay = TRUE}
+```{r, message=FALSE}
 unlist(lapply(loadmorebutton, function(x){x$getElementText()}))
 ```
 
 Now, how to simulate a clic on one of this button ?
 
-```{r, message=FALSE}
+An easy way was to call `clickElement()` function on the first loadmorebutton webelement :
 
+```{r, message=FALSE}
+tryCatch({
+suppressMessages({
+  loadmorebutton[[1]]$clickElement()})},
+error = function(e) {
+    loadmorebutton[[1]]$errorDetails()$message
+  })
 ```
 
-What happen when the 
+This command return an error message (if not, you're lucky !), not very explicit, so if you want more details, you could call the function `errorDetails()` like our `trycatch` block.
+
+An element of the webpage overlapp our button, so browser say us that's not possible to clic on this webelement. Use snapshot function to see the page : 
+
+```{r, message=FALSE}
+remDr$screenshot(file = 'screenshoot.png' )
+```
+
+If we hide these elements using XPath and javascript injection, everything goes to normal. First we accept cookies.
+
+```{r, message=FALSE, delay = TRUE}
+cookiesButton <- remDr$findElement(using = 'xpath',"//div[@class='important-banner__close']")
+cookiesButton$clickElement()
+remDr$screenshot(file = 'screenshoot.png' )
+```
+
+The navbar element create problem, so we hide it using javascript injection :
+
+```{r, message=FALSE, delay = TRUE}
+script <- "document.getElementById('navContainer').hidden = true;"
+remDr$executeScript(script)
+```
+
+Now you can `clickElement()` without problem :)
+
+```{r, message=FALSE}
+tryCatch({
+suppressMessages({
+  loadmorebutton[[1]]$clickElement()})},
+error = function(e) {
+    remDr$errorDetails()$message
+  })
+```
+
+See changes before and after using `remDr$screenshot(display = TRUE)` command
 
 ### Exercices
 
-Create a function to do that :)
+- Create a function which clic on button until they all disapears  :)
 
-## Using XHR
+<button title="Click to show answer" type="button"
+   onclick="if(document.getElementById('spoiler').style.display=='none')
+              {document.getElementById('spoiler').style.display=''}
+            else{document.getElementById('spoiler').style.display='none'}">
+  Show/hide
+</button>
+
+<div id="spoiler" style="display:none">
+
+```{r, message=FALSE,eval=FALSE}
+
+ searchElements <- function() { 
+   elements <- remDr$findElements(using = 'xpath', "//button[@class='btn btn-table-action btn-flights-load' and not(contains(@style,'display: none;'))]")
+   return(elements)
+   }
+ 
+clic <- function(x){
+  Sys.sleep(3) # time to load
+  x$clickElement()
+ }
+ 
+elements <- searchElements()
+while(length(elements) > 0)
+{
+   lapply(loadmorebutton, clic)
+   elements <- searchElements()
+}
+
+remDr$screenshot(display = TRUE)
+
+```
+
+</div>
+
+- Extract data for only one day !
+
+## Using XHR request
 
 https://www.w3schools.com/js/js_json_http.asp
