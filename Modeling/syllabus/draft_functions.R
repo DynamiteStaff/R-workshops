@@ -1,5 +1,9 @@
 setwd("~/GitHub/R-workshops/Modeling/syllabus")
 
+load("cityTractsWithPopAndVacancy.RData")
+
+
+
 library(githubinstall)
 library(rmapzen)
 library(leaflet)
@@ -23,10 +27,15 @@ library(cancensusHelpers)
 library(MLID)
 
 
+
 options(cancensus.api_key = "CensusMapper_5d949dee7f3e2546720b77d6ef08072e")
 ct = "35535"
 cm = "24462"
 cv = "59933"
+
+cht = c(-79.5257363, 43.6148863)
+chm = c(-123.2309412, 49.2219987)
+chv = c(-73.7171664, 45.4726094)
 
 f = list.files('insideairbnb/')
 
@@ -88,21 +97,40 @@ dim(final) / dim(df)
 
 
 
-city = "montreal"
+city = "toronto"
 
 
 if(city == "toronto"){
 citynames = toronto
 censuscode = ct
+cityhall = cht
 }
 if(city == "vancouver"){
 citynames = vancouver
 censuscode = cv
+cityhall = chv
 }
 if(city == "montreal"){
 citynames = montreal
 censuscode = cm
+cityhall = chm
 }
+
+#############aggregate airbnb into vancouver tracts.
+csd.csd.geo <- get_census_geometry("CA16", regions=list(CSD=cv), 
+                                   level = "CSD", geo_format = "sf")
+csd.geo <- get_census_geometry("CA16", regions=list(CSD=cv), 
+                               level = "CT", geo_format = "sf")
+unique(csd.csd.geo$name)
+geoid = as.character(csd.csd.geo[csd.csd.geo$name == "Vancouver (CY)","GeoUID"])[1]
+vancouver_tr = csd.geo[csd.geo$CSD_UID == geoid,]
+head(vancouver_tr)
+vancouver_tr$vacancy = (vancouver_tr$Dwellings - vancouver_tr$Households) / vancouver_tr$Dwellings
+summary(vancouver_tr$vacancy)  
+plot(vancouver_tr)
+####################################################
+
+
 
 city_data = subset(final, city %in% citynames)
 
@@ -113,7 +141,10 @@ filter(vector == "v_CA16_3954") %>%
 child_census_vectors(leaves_only = TRUE) %>% 
 pull(vector)
 
+NotVisibleMinority = "v_CA16_3996"
+
 minority_vectors <- c(parent_vector, minorities)
+
 
 cma.ct <- get_census("CA16", regions=list(CMA=censuscode), 
 vectors = minority_vectors, level = "CT",
@@ -127,7 +158,6 @@ level = "CT", geo_format = "sf")
 
 csd.csd.geo <- get_census_geometry("CA16", regions=list(CSD=censuscode), 
 level = "CSD", geo_format = "sf")
-
 
 
 pal <- colorQuantile(
@@ -473,21 +503,7 @@ head(toronto_tr)
 toronto_tr$vacancy = (toronto_tr$Dwellings - toronto_tr$Households) / toronto_tr$Dwellings
 summary(toronto_tr$vacancy)  
 
-
-#############aggregate airbnb into vancouver tracts.
-csd.csd.geo <- get_census_geometry("CA16", regions=list(CSD=cv), 
-                                   level = "CSD", geo_format = "sf", )
-csd.geo <- get_census_geometry("CA16", regions=list(CSD=cv), 
-                               level = "CT", geo_format = "sf")
-unique(csd.csd.geo$name)
-geoid = as.character(csd.csd.geo[csd.csd.geo$name == "Vancouver (CY)","GeoUID"])[1]
-vancouver_tr = csd.geo[csd.geo$CSD_UID == geoid,]
-head(vancouver_tr)
-vancouver_tr$vacancy = (vancouver_tr$Dwellings - vancouver_tr$Households) / vancouver_tr$Dwellings
-summary(vancouver_tr$vacancy)  
-plot(vancouver_tr)
-
-save(toronto_tr, vancouver_tr, file="cityTractsWithPopAndVacancy.RData")
+#save(toronto_tr, vancouver_tr, file="cityTractsWithPopAndVacancy.RData")
 
 library(rgdal)
 rbnb_pts <- city_data 
@@ -502,6 +518,7 @@ class(toronto_tracts)
 class(rbnb_pts)
 
 library(Hmisc)
+library(rgeos)
 PTS <- as(rbnb_pts, "sf")
 POLY <- as(toronto_tracts, "sf")
 idata <- st_intersection(PTS, POLY)
@@ -510,12 +527,94 @@ rbnbPerTract <- idata %>%
   #group_by(CSD_UID) %>%
   count(GeoUID, sort = TRUE) %>%
   select(GeoUID, n)
+listingPerCapita <- 1
 
-idata$distPPR = cut2(idata$priceperroom, g=10)
-rbnbPerTract <- table(idata$GeoUID, idata$distPPR)
-missingTracts = matrix(x = )
-rbnbPerAllTract <- rbind(rbnbPerTract, missingTracts)
-dim(rbnbPerTract)
-dim(toronto_tracts@data)
+listingCounts = as.data.frame(rbnbPerTract[,1:2])
+toronto_tracts@data <- data.frame(toronto_tracts@data,
+         listingCounts[match(toronto_tracts@data$GeoUID,
+                             listingCounts$GeoUID),])
+toronto_tracts@data <- data.frame(toronto_tracts@data,
+         tractTable[match(toronto_tracts@data$GeoUID,
+                          tractTable$GeoUID),])
 
-spseg(toronto_tracts, rbnbPerTract)
+Mino = as.data.frame(cma.ct[,c("GeoUID", minorities)])
+
+toronto_tracts@data <- data.frame(toronto_tracts@data,
+                                  Mino[match(toronto_tracts@data$GeoUID,
+                                             Mino$GeoUID),])
+
+toronto_tracts@data$ListingPerCapita = toronto_tracts@data$n / toronto_tracts@data$Population
+toronto_tracts@data <- toronto_tracts@data %>% 
+  mutate_at(minorities, funs(Share = ./ Population) )
+
+summary(toronto_tracts@data)
+centroidsToronto = gCentroid(toronto_tracts,byid=TRUE)
+plot(centroidsToronto, add = T, pch = 16, cex = 0.6)
+
+listMinoShares = paste0(minorities, "_Share")
+ 
+EstimatorAirbnbPresence = cbind(toronto_tracts@data[,c("GeoUID", "ListingPerCapita", "Ei", 
+                                                       listMinoShares)],
+                    coordinates(centroidsToronto))
+
+head(EstimatorAirbnbPresence)
+library(geosphere)
+
+DistCityHall <- distm(EstimatorAirbnbPresence[,c('x','y')], 
+                      cityhall, fun=distVincentyEllipsoid)
+EstimatorAirbnbPresence = cbind(EstimatorAirbnbPresence, DistCityHall)
+
+head(EstimatorAirbnbPresence)
+
+hist(EstimatorAirbnbPresence$ListingPerCapita)
+
+
+ggplot(EstimatorAirbnbPresence, aes(x = DistCityHall, y = ListingPerCapita)) +
+  geom_point() + geom_smooth() + scale_x_log10() + scale_y_log10() +
+  geom_vline(xintercept = 10000, col = "orange", cex = 1)
+
+# mean value of listing per capita of tracts between 0 & 10 km: 
+central <- EstimatorAirbnbPresence %>%
+  filter(DistCityHall <= 10000, !is.na(ListingPerCapita)) %>%
+  select(ListingPerCapita, DistCityHall, Ei, listMinoShares)
+
+central %>%
+  summarise(mean(ListingPerCapita))
+
+
+# regression listing per capita of tracts above 10 km: 
+peripheral <- EstimatorAirbnbPresence %>%
+  filter(DistCityHall > 10000, !is.na(ListingPerCapita)) %>%
+  select(ListingPerCapita, DistCityHall, Ei, listMinoShares)
+
+summary(lm(log(ListingPerCapita) ~ log(DistCityHall), data = peripheral))
+
+
+lab = as.data.frame (list_census_vectors('CA16') %>% 
+                       filter(vector %in% minorities) %>% 
+                       select(vector, label))
+
+
+
+for (sample in c("all", "central", "peripheral")){
+  if (sample == "all") df = EstimatorAirbnbPresence
+  if (sample == "central") df = central
+  if (sample == "peripheral") df = peripheral
+  
+  f = paste0("log(ListingPerCapita) ~ log(DistCityHall) + ",
+             paste(listMinoShares, collapse = " + "))
+  print(paste0("obs = ", dim(df)[1]))
+  print(summary(lm(formula(f), data = df)))
+}
+
+
+library(lme4)
+#### TO DO
+# add names of variable to regression results
+# report tract val to airbnb table
+# regress value of listing with variable (lmer)
+# segregation indices : moran/duncan/entropy for minorities
+# reardon for airbnb
+# markdown ok
+# slides
+
