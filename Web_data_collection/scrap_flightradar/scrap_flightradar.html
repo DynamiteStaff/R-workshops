@@ -181,7 +181,7 @@ remDr$open()</code></pre>
 ## [1] TRUE
 ## 
 ## $webdriver.remote.sessionid
-## [1] &quot;64862c70-32b1-4c1a-8cb1-2b8207416c51&quot;
+## [1] &quot;c473ee26-f93b-4217-9938-d07010614644&quot;
 ## 
 ## $webStorageEnabled
 ## [1] TRUE
@@ -202,7 +202,7 @@ remDr$open()</code></pre>
 ## [1] TRUE
 ## 
 ## $id
-## [1] &quot;64862c70-32b1-4c1a-8cb1-2b8207416c51&quot;</code></pre>
+## [1] &quot;c473ee26-f93b-4217-9938-d07010614644&quot;</code></pre>
 </div>
 <div id="basic-command-for-rselenium" class="section level3">
 <h3>Basic command for RSelenium</h3>
@@ -258,7 +258,7 @@ suppressMessages({
 error = function(e) {
     loadmorebutton[[1]]$errorDetails()$message
   })</code></pre>
-<pre><code>## [1] &quot;Element is not clickable at point (502, 20.666671752929688). Other element would receive the click: &lt;div class=\&quot;nav-container-bar\&quot;&gt;&lt;/div&gt;\nCommand duration or timeout: 73 milliseconds\nBuild info: version: '2.52.0', revision: '4c2593c', time: '2016-02-11 19:06:42'\nSystem info: host: '54db0de2afe5', ip: '172.17.0.2', os.name: 'Linux', os.arch: 'amd64', os.version: '4.15.0-34-generic', java.version: '1.8.0_45-internal'\nDriver info: org.openqa.selenium.firefox.FirefoxDriver\nCapabilities [{applicationCacheEnabled=true, rotatable=false, handlesAlerts=true, databaseEnabled=true, version=44.0, platform=LINUX, nativeEvents=false, acceptSslCerts=true, webStorageEnabled=true, locationContextEnabled=true, browserName=firefox, takesScreenshot=true, javascriptEnabled=true, cssSelectorsEnabled=true}]\nSession ID: 1f259fb9-2fff-4ee2-a553-d557675291e9&quot;</code></pre>
+<pre><code>## [1] &quot;Element is not clickable at point (502, 20.666671752929688). Other element would receive the click: &lt;div class=\&quot;nav-container-bar\&quot;&gt;&lt;/div&gt;\nCommand duration or timeout: 110 milliseconds\nBuild info: version: '2.52.0', revision: '4c2593c', time: '2016-02-11 19:06:42'\nSystem info: host: '54db0de2afe5', ip: '172.17.0.2', os.name: 'Linux', os.arch: 'amd64', os.version: '4.15.0-34-generic', java.version: '1.8.0_45-internal'\nDriver info: org.openqa.selenium.firefox.FirefoxDriver\nCapabilities [{applicationCacheEnabled=true, rotatable=false, handlesAlerts=true, databaseEnabled=true, version=44.0, platform=LINUX, nativeEvents=false, acceptSslCerts=true, webStorageEnabled=true, locationContextEnabled=true, browserName=firefox, takesScreenshot=true, javascriptEnabled=true, cssSelectorsEnabled=true}]\nSession ID: 6cdad2d8-8491-4799-85b3-19c691831537&quot;</code></pre>
 <p>This command return an error message (if not, you’re lucky !), not very explicit, so if you want more details, you could call the function <code>errorDetails()</code> like our <code>trycatch</code> block.</p>
 <p>An element of the webpage overlapp our button, so browser say us that’s not possible to clic on this webelement. Use snapshot function to see the page :</p>
 <pre class="r"><code>remDr$screenshot(file = 'screenshoot.png' )</code></pre>
@@ -281,7 +281,9 @@ error = function(e) {
 </div>
 <div id="exercices" class="section level3">
 <h3>Exercices</h3>
-<p>Create a function which clic on button until they all disapears :)</p>
+<ul>
+<li>Create a function which clic on button until they all disapears :)</li>
+</ul>
 <button title="Click to show answer" type="button" onclick="if(document.getElementById('spoiler').style.display=='none')
               {document.getElementById('spoiler').style.display=''}
             else{document.getElementById('spoiler').style.display='none'}">
@@ -305,12 +307,950 @@ while(length(elements) &gt; 0)
    elements &lt;- searchElements()
 }
 
+Sys.sleep(5) # time to load
+
 remDr$screenshot(display = TRUE)</code></pre>
 </div>
+<ul>
+<li>Extract data for only one day using XPATH and Rvest !</li>
+</ul>
+<button title="Click to show answer" type="button" onclick="if(document.getElementById('spoiler2').style.display=='none')
+              {document.getElementById('spoiler2').style.display=''}
+            else{document.getElementById('spoiler2').style.display='none'}">
+Show/hide
+</button>
+<div id="spoiler2" style="display:none">
+<p>We use the already discussed library nammed <code>rvest</code> to prepare data for dataframe.</p>
+<pre class="r"><code>library(rvest)
+
+src &lt;- remDr$getPageSource()[[1]]  %&gt;% read_html()
+
+column &lt;- function(x) src %&gt;% html_nodes(xpath = x) %&gt;% html_text(trim=TRUE)
+
+df &lt;- data.frame(
+  hour = column(&quot;//tr[@data-date='Tuesday, Sep 18']//td[1]/text()&quot;),
+  from = column(&quot;//tr[@data-date='Tuesday, Sep 18']//span[@class='hide-mobile-only ng-binding']/text()&quot;),
+  code = column(&quot;//tr[@data-date='Tuesday, Sep 18']//div[@ng-show='(objFlight.flight.airport.origin)']//a//text()&quot;),
+  airline = column(&quot;//tr[@data-date='Tuesday, Sep 18']//td[@class='cell-airline']//a//text()&quot;),
+  plane = column(&quot;//tr[@data-date='Tuesday, Sep 18']//span[@class='notranslate ng-binding']/text()&quot;),
+  planecode =column(&quot;//tr[@data-date='Tuesday, Sep 18']//a[@ng-show='(objFlight.flight.aircraft.registration)']//text()&quot;),
+  info = column(&quot;//tr[@data-date='Tuesday, Sep 18']//td[7]&quot;),
+  stringsAsFactors = FALSE
+)
+
+kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
+<table>
+<caption>results of webscraping</caption>
+<thead>
+<tr class="header">
+<th align="left">hour</th>
+<th align="left">from</th>
+<th align="left">code</th>
+<th align="left">airline</th>
+<th align="left">plane</th>
+<th align="left">planecode</th>
+<th align="left">info</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">12:45 AM</td>
+<td align="left">Malaga</td>
+<td align="left">(AGP)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTE)</td>
+<td align="left">Landed 1:06 AM</td>
+</tr>
+<tr class="even">
+<td align="left">12:50 AM</td>
+<td align="left">Naples</td>
+<td align="left">(NAP)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTF)</td>
+<td align="left">Landed 12:41 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">1:00 AM</td>
+<td align="left">Ibiza</td>
+<td align="left">(IBZ)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTC)</td>
+<td align="left">Landed 1:30 AM</td>
+</tr>
+<tr class="even">
+<td align="left">2:45 AM</td>
+<td align="left">Paris</td>
+<td align="left">(CDG)</td>
+<td align="left">ASL Airlines France</td>
+<td align="left">B733</td>
+<td align="left">(F-GZTB)</td>
+<td align="left">Landed 2:43 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">7:05 AM</td>
+<td align="left">Marseille</td>
+<td align="left">(MRS)</td>
+<td align="left">Air France</td>
+<td align="left">A319</td>
+<td align="left">(F-GRXB)</td>
+<td align="left">Landed 7:03 AM</td>
+</tr>
+<tr class="even">
+<td align="left">7:25 AM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A318</td>
+<td align="left">(F-GUGN)</td>
+<td align="left">Landed 7:10 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">7:30 AM</td>
+<td align="left">Rennes</td>
+<td align="left">(RNS)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HBCA)</td>
+<td align="left">Landed 7:25 AM</td>
+</tr>
+<tr class="even">
+<td align="left">7:53 AM</td>
+<td align="left">Montreal</td>
+<td align="left">(YUL)</td>
+<td align="left">Air Transat</td>
+<td align="left">A310</td>
+<td align="left">(C-GTSY)</td>
+<td align="left">Landed 7:01 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">8:05 AM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">HOP!</td>
+<td align="left">CRJX</td>
+<td align="left">(F-HMLK)</td>
+<td align="left">Diverted to NTE</td>
+</tr>
+<tr class="even">
+<td align="left">8:30 AM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A319</td>
+<td align="left">(F-GPMD)</td>
+<td align="left">Landed 8:11 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">8:30 AM</td>
+<td align="left">Strasbourg</td>
+<td align="left">(SXB)</td>
+<td align="left">Volotea</td>
+<td align="left">B712</td>
+<td align="left">(EI-EXB)</td>
+<td align="left">Landed 8:14 AM</td>
+</tr>
+<tr class="even">
+<td align="left">8:40 AM</td>
+<td align="left">Nantes</td>
+<td align="left">(NTE)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HBCE)</td>
+<td align="left">Landed 9:43 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">9:00 AM</td>
+<td align="left">Madrid</td>
+<td align="left">(MAD)</td>
+<td align="left">SAS</td>
+<td align="left">CRJ9</td>
+<td align="left">(EC-JZV)</td>
+<td align="left">Landed 8:53 AM</td>
+</tr>
+<tr class="even">
+<td align="left">9:05 AM</td>
+<td align="left">Zurich</td>
+<td align="left">(ZRH)</td>
+<td align="left">Helvetic Airways</td>
+<td align="left">E190</td>
+<td align="left">(HB-JVQ)</td>
+<td align="left">Landed 8:53 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">9:10 AM</td>
+<td align="left">Barcelona</td>
+<td align="left">(BCN)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(OE-IJQ)</td>
+<td align="left">Landed 10:01 AM</td>
+</tr>
+<tr class="even">
+<td align="left">9:15 AM</td>
+<td align="left">London</td>
+<td align="left">(LGW)</td>
+<td align="left">PrivatAir</td>
+<td align="left">B737</td>
+<td align="left">(D-AWBC)</td>
+<td align="left">Landed 9:30 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">9:30 AM</td>
+<td align="left">Paris</td>
+<td align="left">(CDG)</td>
+<td align="left">Air France</td>
+<td align="left">A319</td>
+<td align="left">(F-GRXD)</td>
+<td align="left">Landed 9:48 AM</td>
+</tr>
+<tr class="even">
+<td align="left">9:35 AM</td>
+<td align="left">Lille</td>
+<td align="left">(LIL)</td>
+<td align="left">HOP!</td>
+<td align="left">E170</td>
+<td align="left">(F-HBXM)</td>
+<td align="left">Landed 9:23 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">9:35 AM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">Air France</td>
+<td align="left">A319</td>
+<td align="left">(F-GRHX)</td>
+<td align="left">Landed 9:19 AM</td>
+</tr>
+<tr class="even">
+<td align="left">9:55 AM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A320</td>
+<td align="left">(F-HBNB)</td>
+<td align="left">Landed 9:45 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">9:55 AM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZGX)</td>
+<td align="left">Landed 9:42 AM</td>
+</tr>
+<tr class="even">
+<td align="left">10:05 AM</td>
+<td align="left">Brest</td>
+<td align="left">(BES)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HBCC)</td>
+<td align="left">Landed 9:52 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">10:45 AM</td>
+<td align="left">Montpellier</td>
+<td align="left">(MPL)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HBCA)</td>
+<td align="left">Landed 10:32 AM</td>
+</tr>
+<tr class="even">
+<td align="left">10:50 AM</td>
+<td align="left">Paris</td>
+<td align="left">(CDG)</td>
+<td align="left">Air France</td>
+<td align="left">A320</td>
+<td align="left">(F-GKXI)</td>
+<td align="left">Landed 10:56 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">10:50 AM</td>
+<td align="left">Athens</td>
+<td align="left">(ATH)</td>
+<td align="left">Aegean Airlines</td>
+<td align="left">A320</td>
+<td align="left">(SX-DNA)</td>
+<td align="left">Landed 10:45 AM</td>
+</tr>
+<tr class="even">
+<td align="left">10:55 AM</td>
+<td align="left">London</td>
+<td align="left">(LGW)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZWR)</td>
+<td align="left">Landed 11:01 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">11:05 AM</td>
+<td align="left">Amsterdam</td>
+<td align="left">(AMS)</td>
+<td align="left">KLM</td>
+<td align="left">B737</td>
+<td align="left">(PH-BGK)</td>
+<td align="left">Landed 10:58 AM</td>
+</tr>
+<tr class="even">
+<td align="left">11:20 AM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">319</td>
+<td align="left">()</td>
+<td align="left">Canceled</td>
+</tr>
+<tr class="odd">
+<td align="left">11:45 AM</td>
+<td align="left">Barcelona</td>
+<td align="left">(BCN)</td>
+<td align="left">Vueling</td>
+<td align="left">A320</td>
+<td align="left">(EC-MER)</td>
+<td align="left">Landed 11:40 AM</td>
+</tr>
+<tr class="even">
+<td align="left">12:05 PM</td>
+<td align="left">Nantes</td>
+<td align="left">(NTE)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HETS)</td>
+<td align="left">Landed 11:53 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">1:30 PM</td>
+<td align="left">Paris</td>
+<td align="left">(CDG)</td>
+<td align="left">Air France</td>
+<td align="left">A321</td>
+<td align="left">(F-GTAD)</td>
+<td align="left">Landed 1:46 PM</td>
+</tr>
+<tr class="even">
+<td align="left">1:30 PM</td>
+<td align="left">Milan</td>
+<td align="left">(MXP)</td>
+<td align="left">easyJet</td>
+<td align="left">A319</td>
+<td align="left">(OE-LKD)</td>
+<td align="left">Landed 1:39 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">1:35 PM</td>
+<td align="left">Nice</td>
+<td align="left">(NCE)</td>
+<td align="left">Air France</td>
+<td align="left">A319</td>
+<td align="left">(F-GRHX)</td>
+<td align="left">Landed 1:26 PM</td>
+</tr>
+<tr class="even">
+<td align="left">1:35 PM</td>
+<td align="left">Marrakesh</td>
+<td align="left">(RAK)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(OE-IVN)</td>
+<td align="left">Landed 1:09 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">1:40 PM</td>
+<td align="left">Brussels</td>
+<td align="left">(BRU)</td>
+<td align="left">Brussels Airlines</td>
+<td align="left">A319</td>
+<td align="left">(OO-SSS)</td>
+<td align="left">Landed 1:31 PM</td>
+</tr>
+<tr class="even">
+<td align="left">1:40 PM</td>
+<td align="left">Nice</td>
+<td align="left">(NCE)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZGX)</td>
+<td align="left">Landed 1:34 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">2:35 PM</td>
+<td align="left">Lisbon</td>
+<td align="left">(LIS)</td>
+<td align="left">easyJet</td>
+<td align="left">A319</td>
+<td align="left">(G-EZDF)</td>
+<td align="left">Landed 2:34 PM</td>
+</tr>
+<tr class="even">
+<td align="left">2:35 PM</td>
+<td align="left">Ajaccio</td>
+<td align="left">(AJA)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTC)</td>
+<td align="left">Landed 2:29 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">2:55 PM</td>
+<td align="left">Rome</td>
+<td align="left">(FCO)</td>
+<td align="left">HOP!</td>
+<td align="left">E170</td>
+<td align="left">(F-HBXM)</td>
+<td align="left">Landed 2:50 PM</td>
+</tr>
+<tr class="even">
+<td align="left">3:15 PM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A321</td>
+<td align="left">(F-GTAX)</td>
+<td align="left">Landed 3:09 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">3:15 PM</td>
+<td align="left">Figari</td>
+<td align="left">(FSC)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTF)</td>
+<td align="left">Landed 3:02 PM</td>
+</tr>
+<tr class="even">
+<td align="left">3:25 PM</td>
+<td align="left">Porto</td>
+<td align="left">(OPO)</td>
+<td align="left">Ryanair</td>
+<td align="left">B738</td>
+<td align="left">(EI-EVR)</td>
+<td align="left">Landed 3:14 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">3:30 PM</td>
+<td align="left">Rome</td>
+<td align="left">(CIA)</td>
+<td align="left">Ryanair</td>
+<td align="left">B738</td>
+<td align="left">(EI-EBR)</td>
+<td align="left">Landed 3:29 PM</td>
+</tr>
+<tr class="even">
+<td align="left">3:55 PM</td>
+<td align="left">Lisbon</td>
+<td align="left">(LIS)</td>
+<td align="left">TAP Express</td>
+<td align="left">E195</td>
+<td align="left">(CS-TTX)</td>
+<td align="left">Landed 4:11 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">4:05 PM</td>
+<td align="left">Dublin</td>
+<td align="left">(DUB)</td>
+<td align="left">Aer Lingus</td>
+<td align="left">A320</td>
+<td align="left">(EI-DEC)</td>
+<td align="left">Landed 3:46 PM</td>
+</tr>
+<tr class="even">
+<td align="left">4:15 PM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A320</td>
+<td align="left">(F-HBNF)</td>
+<td align="left">Landed 4:15 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">4:20 PM</td>
+<td align="left">Marseille</td>
+<td align="left">(MRS)</td>
+<td align="left">Air France</td>
+<td align="left">A320</td>
+<td align="left">(F-GKXK)</td>
+<td align="left">Landed 4:09 PM</td>
+</tr>
+<tr class="even">
+<td align="left">4:20 PM</td>
+<td align="left">Amsterdam</td>
+<td align="left">(AMS)</td>
+<td align="left">KLM</td>
+<td align="left">E190</td>
+<td align="left">(PH-EZP)</td>
+<td align="left">Landed 4:34 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">4:25 PM</td>
+<td align="left">Rennes</td>
+<td align="left">(RNS)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HBCA)</td>
+<td align="left">Landed 4:38 PM</td>
+</tr>
+<tr class="even">
+<td align="left">4:25 PM</td>
+<td align="left">Bristol</td>
+<td align="left">(BRS)</td>
+<td align="left">easyJet</td>
+<td align="left">A20N</td>
+<td align="left">(G-UZHI)</td>
+<td align="left">Landed 4:08 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">4:35 PM</td>
+<td align="left">Seville</td>
+<td align="left">(SVQ)</td>
+<td align="left">Ryanair</td>
+<td align="left">B738</td>
+<td align="left">(EI-DHV)</td>
+<td align="left">Unknown</td>
+</tr>
+<tr class="even">
+<td align="left">4:40 PM</td>
+<td align="left">Basel</td>
+<td align="left">(BSL)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(HB-JZY)</td>
+<td align="left">Landed 4:33 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">4:45 PM</td>
+<td align="left">London</td>
+<td align="left">(LTN)</td>
+<td align="left">easyJet</td>
+<td align="left">A319</td>
+<td align="left">(OE-LKQ)</td>
+<td align="left">Landed 4:38 PM</td>
+</tr>
+<tr class="even">
+<td align="left">4:55 PM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">HOP!</td>
+<td align="left">CRK</td>
+<td align="left">()</td>
+<td align="left">Canceled</td>
+</tr>
+<tr class="odd">
+<td align="left">5:05 PM</td>
+<td align="left">Edinburgh</td>
+<td align="left">(EDI)</td>
+<td align="left">Ryanair</td>
+<td align="left">B738</td>
+<td align="left">(EI-EFG)</td>
+<td align="left">Landed 5:03 PM</td>
+</tr>
+<tr class="even">
+<td align="left">5:25 PM</td>
+<td align="left">Hamburg</td>
+<td align="left">(HAM)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZWR)</td>
+<td align="left">Landed 5:14 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">5:30 PM</td>
+<td align="left">Paris</td>
+<td align="left">(CDG)</td>
+<td align="left">Air France</td>
+<td align="left">A321</td>
+<td align="left">(F-GTAU)</td>
+<td align="left">Landed 5:35 PM</td>
+</tr>
+<tr class="even">
+<td align="left">5:30 PM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">Air France</td>
+<td align="left">A319</td>
+<td align="left">(F-GRHQ)</td>
+<td align="left">Landed 5:16 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">5:30 PM</td>
+<td align="left">Tunis</td>
+<td align="left">(TUN)</td>
+<td align="left">Tunisair</td>
+<td align="left">32A</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">5:40 PM</td>
+<td align="left">Milan</td>
+<td align="left">(BGY)</td>
+<td align="left">Ryanair</td>
+<td align="left">B738</td>
+<td align="left">(EI-DLJ)</td>
+<td align="left">Landed 5:27 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">5:40 PM</td>
+<td align="left">Madrid</td>
+<td align="left">(MAD)</td>
+<td align="left">Iberia Regional</td>
+<td align="left">CRJX</td>
+<td align="left">(EC-MUG)</td>
+<td align="left">Delayed 6:06 PM</td>
+</tr>
+<tr class="even">
+<td align="left">5:55 PM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A321</td>
+<td align="left">(F-GMZC)</td>
+<td align="left">Landed 5:46 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">5:55 PM</td>
+<td align="left">Frankfurt</td>
+<td align="left">(FRA)</td>
+<td align="left">Lufthansa</td>
+<td align="left">A319</td>
+<td align="left">(D-AILM)</td>
+<td align="left">Landed 5:41 PM</td>
+</tr>
+<tr class="even">
+<td align="left">5:55 PM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A321</td>
+<td align="left">(F-GMZC)</td>
+<td align="left">Landed 5:46 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">5:55 PM</td>
+<td align="left">Frankfurt</td>
+<td align="left">(FRA)</td>
+<td align="left">Lufthansa</td>
+<td align="left">A319</td>
+<td align="left">(D-AILM)</td>
+<td align="left">Landed 5:41 PM</td>
+</tr>
+<tr class="even">
+<td align="left">6:00 PM</td>
+<td align="left">Algiers</td>
+<td align="left">(ALG)</td>
+<td align="left">Air Algerie</td>
+<td align="left">B738</td>
+<td align="left">(7T-VKL)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">6:10 PM</td>
+<td align="left">Warsaw</td>
+<td align="left">(WAW)</td>
+<td align="left">Wizz Air</td>
+<td align="left">A320</td>
+<td align="left">(HA-LPM)</td>
+<td align="left">Estimated 6:01 PM</td>
+</tr>
+<tr class="even">
+<td align="left">6:15 PM</td>
+<td align="left">Bucharest</td>
+<td align="left">(OTP)</td>
+<td align="left">Blue Air (Carol I Livery)</td>
+<td align="left">B738</td>
+<td align="left">(YR-BMP)</td>
+<td align="left">Delayed 8:35 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">6:20 PM</td>
+<td align="left">Brest</td>
+<td align="left">(BES)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HBCC)</td>
+<td align="left">Estimated 6:14 PM</td>
+</tr>
+<tr class="even">
+<td align="left">6:35 PM</td>
+<td align="left">Geneva</td>
+<td align="left">(GVA)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZUO)</td>
+<td align="left">Estimated 6:18 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">6:35 PM</td>
+<td align="left">Lille</td>
+<td align="left">(LIL)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZGX)</td>
+<td align="left">Estimated 6:26 PM</td>
+</tr>
+<tr class="even">
+<td align="left">6:40 PM</td>
+<td align="left">Venice</td>
+<td align="left">(VCE)</td>
+<td align="left">easyJet</td>
+<td align="left">A319</td>
+<td align="left">(G-EZDC)</td>
+<td align="left">Estimated 6:42 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">6:45 PM</td>
+<td align="left">Lille</td>
+<td align="left">(LIL)</td>
+<td align="left">HOP!</td>
+<td align="left">E170</td>
+<td align="left">(F-HBXM)</td>
+<td align="left">Estimated 6:37 PM</td>
+</tr>
+<tr class="even">
+<td align="left">6:50 PM</td>
+<td align="left">Palma de Mallorca</td>
+<td align="left">(PMI)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTE)</td>
+<td align="left">Estimated 6:53 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">7:00 PM</td>
+<td align="left">Zurich</td>
+<td align="left">(ZRH)</td>
+<td align="left">Swiss</td>
+<td align="left">BCS1</td>
+<td align="left">(HB-JBA)</td>
+<td align="left">Delayed 7:20 PM</td>
+</tr>
+<tr class="even">
+<td align="left">7:05 PM</td>
+<td align="left">Caen</td>
+<td align="left">(CFR)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">BEH</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">7:10 PM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A321</td>
+<td align="left">(F-GTAX)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">7:10 PM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">EasyJet</td>
+<td align="left">319</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">7:30 PM</td>
+<td align="left">Strasbourg</td>
+<td align="left">(SXB)</td>
+<td align="left">Volotea</td>
+<td align="left">319</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">7:40 PM</td>
+<td align="left">Montpellier</td>
+<td align="left">(MPL)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HBCA)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">8:00 PM</td>
+<td align="left">Marseille</td>
+<td align="left">(MRS)</td>
+<td align="left">Air France</td>
+<td align="left">A320</td>
+<td align="left">(F-GKXK)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">8:10 PM</td>
+<td align="left">Nice</td>
+<td align="left">(NCE)</td>
+<td align="left">easyJet</td>
+<td align="left">A20N</td>
+<td align="left">(G-UZHJ)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">8:15 PM</td>
+<td align="left">Paris</td>
+<td align="left">(CDG)</td>
+<td align="left">Air France</td>
+<td align="left">A319</td>
+<td align="left">(F-GRXE)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">8:30 PM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A321</td>
+<td align="left">(F-GTAQ)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">8:35 PM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">HOP!</td>
+<td align="left">CRK</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">8:45 PM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZWR)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">8:50 PM</td>
+<td align="left">Paris</td>
+<td align="left">(CDG)</td>
+<td align="left">ASL Airlines France</td>
+<td align="left">733</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">9:00 PM</td>
+<td align="left">Liverpool</td>
+<td align="left">(LPL)</td>
+<td align="left">easyJet</td>
+<td align="left">A319</td>
+<td align="left">(G-EZAW)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">9:05 PM</td>
+<td align="left">Catania</td>
+<td align="left">(CTA)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(OE-IVN)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">9:30 PM</td>
+<td align="left">Nantes</td>
+<td align="left">(NTE)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">BEH</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">9:35 PM</td>
+<td align="left">Lyon</td>
+<td align="left">(LYS)</td>
+<td align="left">HOP!</td>
+<td align="left">319</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">9:35 PM</td>
+<td align="left">London</td>
+<td align="left">(LGW)</td>
+<td align="left">EasyJet</td>
+<td align="left">320</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">9:55 PM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A320</td>
+<td align="left">(F-HBNB)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">9:55 PM</td>
+<td align="left">Brest</td>
+<td align="left">(BES)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">BEH</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">10:05 PM</td>
+<td align="left">Casablanca</td>
+<td align="left">(CMN)</td>
+<td align="left">TUI</td>
+<td align="left">B738</td>
+<td align="left">(OO-JBG)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">10:05 PM</td>
+<td align="left">Marseille</td>
+<td align="left">(MRS)</td>
+<td align="left">EasyJet</td>
+<td align="left">320</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">10:20 PM</td>
+<td align="left">Paris</td>
+<td align="left">(CDG)</td>
+<td align="left">Air France</td>
+<td align="left">321</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="even">
+<td align="left">10:20 PM</td>
+<td align="left">Amsterdam</td>
+<td align="left">(AMS)</td>
+<td align="left">KLM</td>
+<td align="left">B737</td>
+<td align="left">(PH-BGT)</td>
+<td align="left">Scheduled</td>
+</tr>
+<tr class="odd">
+<td align="left">10:35 PM</td>
+<td align="left">Lille</td>
+<td align="left">(LIL)</td>
+<td align="left">HOP!</td>
+<td align="left">E70</td>
+<td align="left">()</td>
+<td align="left">Scheduled</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
-<div id="using-xhr" class="section level2">
-<h2>Using XHR</h2>
+</div>
+<div id="using-xhr-request" class="section level2">
+<h2>Using XHR request</h2>
 <p><a href="https://www.w3schools.com/js/js_json_http.asp" class="uri">https://www.w3schools.com/js/js_json_http.asp</a></p>
 </div>
 </div>

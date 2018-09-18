@@ -66,7 +66,7 @@ Type `sudo docker ps` to see if server correctly run and listen to port 4445.
 
 Connect and open the browser on the server.
 
-```{r, message=FALSE}
+```{r, message=FALSE, error=FALSE}
 remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4445L)
 remDr$open()
 ```
@@ -213,7 +213,7 @@ See changes before and after using `remDr$screenshot(display = TRUE)` command
 
 <div id="spoiler" style="display:none">
 
-```{r, message=FALSE,eval=FALSE}
+```{r, message=FALSE}
 
  searchElements <- function() { 
    elements <- remDr$findElements(using = 'xpath', "//button[@class='btn btn-table-action btn-flights-load' and not(contains(@style,'display: none;'))]")
@@ -232,13 +232,51 @@ while(length(elements) > 0)
    elements <- searchElements()
 }
 
+Sys.sleep(5) # time to load
+
 remDr$screenshot(display = TRUE)
 
 ```
 
 </div>
 
-- Extract data for only one day !
+- Extract data for only one day using XPATH and Rvest !
+
+<button title="Click to show answer" type="button"
+   onclick="if(document.getElementById('spoiler2').style.display=='none')
+              {document.getElementById('spoiler2').style.display=''}
+            else{document.getElementById('spoiler2').style.display='none'}">
+  Show/hide
+</button>
+
+<div id="spoiler2" style="display:none">
+
+We use the already discussed library nammed `rvest` to prepare data for dataframe.
+
+```{r, message=FALSE}
+
+library(rvest)
+
+src <- remDr$getPageSource()[[1]]  %>% read_html()
+
+column <- function(x) src %>% html_nodes(xpath = x) %>% html_text(trim=TRUE)
+
+df <- data.frame(
+  hour = column("//tr[@data-date='Tuesday, Sep 18']//td[1]/text()"),
+  from = column("//tr[@data-date='Tuesday, Sep 18']//span[@class='hide-mobile-only ng-binding']/text()"),
+  code = column("//tr[@data-date='Tuesday, Sep 18']//div[@ng-show='(objFlight.flight.airport.origin)']//a//text()"),
+  airline = column("//tr[@data-date='Tuesday, Sep 18']//td[@class='cell-airline']//a//text()"),
+  plane = column("//tr[@data-date='Tuesday, Sep 18']//span[@class='notranslate ng-binding']/text()"),
+  planecode =column("//tr[@data-date='Tuesday, Sep 18']//a[@ng-show='(objFlight.flight.aircraft.registration)']//text()"),
+  info = column("//tr[@data-date='Tuesday, Sep 18']//td[7]"),
+  stringsAsFactors = FALSE
+)
+
+kable(df,caption ="results of webscraping")
+
+```
+
+</div>
 
 ## Using XHR request
 
