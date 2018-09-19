@@ -281,3 +281,55 @@ kable(df,caption ="results of webscraping")
 ## Using XHR request
 
 https://www.w3schools.com/js/js_json_http.asp
+
+Sometimes, a defence is also a point of vulnerability. Many site use an internal API to query and feed website. 
+
+We try to see if this is the case with flight radar :)
+
+Open the dev tools in the browser, clic on Network tab, then XHR tab.
+
+<img src='images/XHR.png'/>
+
+Lucky guy/girl, do you see it ? Each `GET` query call an `aiport.json` file on the server :
+
+`https://api.flightradar24.com/common/v1/airport.json?code=bod&plugin[]=&plugin-setting[schedule][mode]=&plugin-setting[schedule][timestamp]=1537297562&page=1&limit=100&token=`
+
+If we decompose the query, we have :
+- an airport code : **bod**
+- a timestamp : **1537297562**
+- a page number : **1**
+- a limit by page : **100**
+
+Copy paste this url in your browser to see how the result json is structured. Insteresting data is located into schedule `result > response > airport > arrivals` : 
+- **item :** number of total items
+- **page :** actual page and number of page 
+- **timestamp :** date of capture
+- **data :** a list of 100 flights corresponding to actual page
+
+We download and convert json data to data.frame using the jsonlite wonderfull package :) Why wonderfull ? Because jsonlite had an option to flatten the structure of json which normally contain data.frame into data.fram into data.frame ... 
+
+```{r, message=FALSE}
+library(jsonlite)
+
+url <- "https://api.flightradar24.com/common/v1/airport.json?code=bod&plugin[]=&plugin-setting[schedule][mode]=&plugin-setting[schedule][timestamp]=1537297562&page=1&limit=100&token="
+
+# https://cran.r-project.org/web/packages/jsonlite/vignettes/json-aaquickstart.html
+json <- jsonlite::fromJSON(url,flatten = T) 
+```
+
+
+```{r, message=FALSE}
+library(plyr)
+pageOfData <- json$result$response$airport$pluginData$schedule$arrivals$data 
+filteredData <- pageOfData %>% select(flight.airline.code.icao, flight.airline.name, flight.airport.origin.name, flight.airport.origin.code.icao, flight.airport.origin.position.latitude, flight.airport.origin.position.longitude) 
+
+filteredData <- rename(filteredData, c(flight.airline.code.icao = "ICAO", flight.airline.name= "Name", flight.airport.origin.name = "Origin", flight.airport.origin.code.icao="Origin ICAO", flight.airport.origin.position.latitude = "Latitude",flight.airport.origin.position.longitude = "Longitude" ))
+
+knitr::kable(filteredData, caption = "page 1 of arrival for BOD")
+
+```
+
+### Exercices
+
+- Get all pages of data by generating the correct query to API :)
+
