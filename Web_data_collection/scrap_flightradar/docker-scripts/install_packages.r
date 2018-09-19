@@ -1,0 +1,6 @@
+options(Ncpus = 2)
+install.packages("jsonlite")
+install.packages("dplyr")
+install.packages("curl")
+install.packages("readr")
+install.packages("lubridate")

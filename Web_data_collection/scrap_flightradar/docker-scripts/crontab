@@ -1,0 +1,1 @@
+* * * * * Rscript /usr/local/src/flight-scrap/docker-scripts/docker_script.r > /proc/1/fd/1 2>&1
