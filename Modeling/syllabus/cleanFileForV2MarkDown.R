@@ -15,6 +15,11 @@ library(data.table)
 library(reshape2)
 library(ggplot2)
 library(scales)
+library(rgdal)
+library(Hmisc)
+library(rgeos)
+library(geosphere)
+library(gridExtra)
 #library(segregation)
 #library(seg)
 #devtools::install_github("profrichharris/MLID")
@@ -24,29 +29,41 @@ library(cancensusHelpers)
 
 
 options(cancensus.api_key = "CensusMapper_5d949dee7f3e2546720b77d6ef08072e")
-ct = "35535"
-cm = "24462"
-cv = "59933"
 
-cht = c(-79.5257363, 43.6148863)
-chv = c(-123.2309412, 49.2219987)
-chm = c(-73.7171664, 45.4726094)
+#Code for CSD in census
+ct <-  "35535"
+cm  <-  "24462"
+cv  <-  "59933"
 
-f = list.files('insideairbnb/')
+#Code for central municipality in census
+cmt <-  "3520005"
+cmv <- "5915022"
+cmm <- "2466023"
+
+#Coordinates of city hall
+cht  <-  c(-79.5257363, 43.6148863)
+chv  <-  c(-123.2309412, 49.2219987)
+chm  <-  c(-73.7171664, 45.4726094)
+
+#Critical distance for AirBnb
+bdtv <- 10000
+bdm <-  12000
+
+f  <-  list.files('insideairbnb/')
 
 mont <- read.csv(paste0('insideairbnb/', f[1]))
 toro <- read.csv(paste0('insideairbnb/', f[2]))
 vanc <- read.csv(paste0('insideairbnb/', f[3]))
 
-toronto = unique(toro$city)
-vancouver = unique(vanc$city)
-montreal = unique(mont$city)
+toronto  <-  unique(toro$city)
+vancouver <-  unique(vanc$city)
+montreal  <-  unique(mont$city)
 
-df = rbind(mont, toro, vanc)
+df <-  rbind(mont, toro, vanc)
 
 
 l <- levels(df$property_type)
-lookup = data.frame('type' = 1:length(l))
+lookup  <-  data.frame('type' = 1:length(l))
 lookup$type <- as.factor(l)
 lookup$property_group <- c(
   # [1] "Aparthotel"             "Apartment"              "Bed and breakfast"      "Boat"                   "Boutique hotel"         "Bungalow"               "Cabin"                 
@@ -63,26 +80,26 @@ lookup$property_group <- c(
   'home', 'other', 'other', 'hotel'
 )
 
-df = data.frame(df,lookup[match(df$property_type, lookup$type),] )
+df <-  data.frame(df,lookup[match(df$property_type, lookup$type),] )
 # dfh = subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood) & df$room_type != "Shared room")
-dfh = subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood))
+dfh  <-  subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood))
 dfh$property_group <- NULL
-dfhu = dfh[!duplicated(dfh$host_id),]
+dfhu  <-  dfh[!duplicated(dfh$host_id),]
 dim(dfh)[1] - dim(df)[1]
 dim(dfhu)[1] - dim(dfh)[1]
 
 
-dfhu$year = as.numeric(substr(dfhu$last_review, 1, 4))
-dfhun = subset(dfhu, year >= 2017)
+dfhu$year  <-  as.numeric(substr(dfhu$last_review, 1, 4))
+dfhun <-  subset(dfhu, year >= 2017)
 dim(dfhun)[1] - dim(dfhu)[1]
 
 
 dfhun$numPrice <- as.numeric(gsub("[$]",'',dfhun$price))
 summary(dfhun$room_type)
-final = subset(dfhun, room_type != "Shared room")
+final  <-  subset(dfhun, room_type != "Shared room")
 
-final$rooms = ifelse(final$bedrooms == 0, 1, final$bedrooms)
-final$priceperroom = as.numeric(ifelse(final$room_type == T,  final$numPrice,  final$numPrice / final$rooms))
+final$rooms  <-  ifelse(final$bedrooms == 0, 1, final$bedrooms)
+final$priceperroom  <-  as.numeric(ifelse(final$room_type == T,  final$numPrice,  final$numPrice / final$rooms))
 
 
 dim(final) / dim(df)
@@ -357,35 +374,37 @@ ggplot(cma_seg%>% filter(Population > 100000) %>% clean_names2 %>%
   labs(x = "More diverse \u2192", y = "More segregated \u2192",
        caption = "Entropy index based calculations of diversity and segregation\nof visible minority groups in cities with population over 100,000\n@dshkol | Data: Statistics Canada, Census 2016")
 
+####################################### 
+#Start city specific analysis
 
 
-city = "toronto"
+city <-  "toronto"
 
 
 if(city == "toronto"){
-  citynames = toronto
-  censuscode = ct
-  cityhall = cht
-  censusCodeMuni = "3520005"
-  breakDist = 10000
+  citynames  <-  toronto
+  censuscode  <-  ct
+  cityhall  <-  cht
+  censusCodeMuni  <- cmt 
+  breakDist <-  bdtv
 }
 if(city == "vancouver"){
-  citynames = vancouver
-  censuscode = cv
-  cityhall = chv
-  censusCodeMuni = "5915022"
-  breakDist = 10000
+  citynames  <-  vancouver
+  censuscode  <-  cv
+  cityhall  <-  chv
+  censusCodeMuni  <-  cmv 
+  breakDist  <-  bdtv
 }
 if(city == "montreal"){
-  citynames = montreal
-  censuscode = cm
-  cityhall = chm
-  censusCodeMuni = "2466023"
-  breakDist = 12000
+  citynames  <-  montreal
+  censuscode  <-  cm
+  cityhall  <-  chm
+  censusCodeMuni <-  cmm
+  breakDist  <-  bdm
 }
 
 
-city_data = subset(final, city %in% citynames)
+city_data <-  subset(final, city %in% citynames)
 
 ## Identifying the vectors for visible Minority status
 parent_vector <- "v_CA16_3954"
@@ -393,8 +412,6 @@ minorities <- list_census_vectors("CA16") %>%
   filter(vector == "v_CA16_3954") %>% 
   child_census_vectors(leaves_only = TRUE) %>% 
   pull(vector)
-
-NotVisibleMinority = "v_CA16_3996"
 
 minority_vectors <- c(parent_vector, minorities)
 
@@ -540,7 +557,7 @@ long.ct.tidy <- long.ct %>%
   tidyr::gather(Group, Count, `South Asian`:Multiple) %>% 
   mutate(Proportion = Count/Total)
 
-head(as.data.frame(long.ct.tidy))
+#head(as.data.frame(long.ct.tidy))
 
 ggplot(long.ct.tidy) + geom_sf(aes(fill = Proportion^(1/2), colour = Proportion^(1/2))) + 
   scale_fill_viridis_c(option = 3, guide = FALSE) + 
@@ -553,11 +570,11 @@ ggplot(long.ct.tidy) + geom_sf(aes(fill = Proportion^(1/2), colour = Proportion^
 
 
 #############aggregate airbnb into city tracts.
-city_tr = csd.geo[csd.geo$CSD_UID == censusCodeMuni,]
+city_tr  <-  csd.geo[csd.geo$CSD_UID == censusCodeMuni,]
 #city_tr$vacancy = (city_tr$Dwellings - city_tr$Households) / city_tr$Dwellings
 #save(toronto_tr, vancouver_tr, file="cityTractsWithPopAndVacancy.RData")
 
-library(rgdal)
+
 rbnb_pts <- city_data 
 coordinates(rbnb_pts) <- ~longitude+latitude
 city_tracts <- as_Spatial(city_tr)
@@ -566,18 +583,16 @@ city_tracts@proj4string <-CRS("+proj=longlat +datum=WGS84")
 plot(city_tracts, border = "grey")
 points(rbnb_pts, col = "red", cex = 0.2, pch = 16)
 
-class(city_tracts)
-class(rbnb_pts)
+#class(city_tracts)
+#class(rbnb_pts)
 
-library(Hmisc)
-library(rgeos)
 PTS <- as(rbnb_pts, "sf")
 POLY <- as(city_tracts, "sf")
 idata <- st_intersection(PTS, POLY)
 
-head(idata)
+#head(idata)
 idata$distribPrice <- cut2(idata$priceperroom, g = 10)
-intervals = levels(unique(idata$distribPrice))
+intervals <- levels(unique(idata$distribPrice))
 
 rbnbPerTract <- as.data.frame(idata %>%
                                 #group_by(CSD_UID) %>%
@@ -590,15 +605,14 @@ rbnbDistributionPerTract <- as.data.frame(idata %>%
                                             select(GeoUID, distribPrice, n))[,1:3]
 
 
-library(reshape2)
 tractDistrib <- dcast(rbnbDistributionPerTract, GeoUID ~ distribPrice)
 tractDistrib[is.na(tractDistrib)] <- 0
 tractDistrib <- tractDistrib[,c("GeoUID", intervals)]
 colnames(tractDistrib)[2:11] <- paste0("G", 1:10)
 
-lookupDistrib = data.frame('name' = paste0("G", 1:10), 'interval' = intervals)
+lookupDistrib <-  data.frame('name' = paste0("G", 1:10), 'interval' = intervals)
 
-listingCounts = as.data.frame(rbnbPerTract[,1:2])
+listingCounts <-  as.data.frame(rbnbPerTract[,1:2])
 city_tracts@data <- data.frame(city_tracts@data,
                                   listingCounts[match(city_tracts@data$GeoUID,
                                                       listingCounts$GeoUID),])
@@ -609,34 +623,33 @@ city_tracts@data <- data.frame(city_tracts@data,
                                   tractTable[match(city_tracts@data$GeoUID,
                                                    tractTable$GeoUID),])
 
-Mino = as.data.frame(cma.ct[,c("GeoUID", minorities)])
+Mino <-  as.data.frame(cma.ct[,c("GeoUID", minorities)])
 
 city_tracts@data <- data.frame(city_tracts@data,
                                   Mino[match(city_tracts@data$GeoUID,
                                              Mino$GeoUID),])
 
-city_tracts@data$ListingPerCapita = city_tracts@data$n / city_tracts@data$Population
+city_tracts@data$ListingPerCapita <-  city_tracts@data$n / city_tracts@data$Population
 city_tracts@data <- city_tracts@data %>% 
   mutate_at(minorities, funs(Share =./ Population) )
 
-summary(city_tracts@data)
-centroidsCity = gCentroid(city_tracts,byid=TRUE)
+#summary(city_tracts@data)
+centroidsCity <-  gCentroid(city_tracts,byid=TRUE)
 plot(centroidsCity, add = T, pch = 16, cex = 0.6)
 
-listMinoShares = paste0(minorities, "_Share")
+listMinoShares  <-  paste0(minorities, "_Share")
 
-EstimatorAirbnbPresence = cbind(city_tracts@data[,c("GeoUID", "ListingPerCapita", "Ei", 
+EstimatorAirbnbPresence <-  cbind(city_tracts@data[,c("GeoUID", "ListingPerCapita", "Ei", 
                                                        listMinoShares)],
                                 coordinates(centroidsCity))
 
-head(EstimatorAirbnbPresence)
-library(geosphere)
+#head(EstimatorAirbnbPresence)
 
 DistCityHall <- distm(EstimatorAirbnbPresence[,c('x','y')], 
                       cityhall, fun=distVincentyEllipsoid)
-EstimatorAirbnbPresence = cbind(EstimatorAirbnbPresence, DistCityHall)
+EstimatorAirbnbPresence <-  cbind(EstimatorAirbnbPresence, DistCityHall)
 
-head(EstimatorAirbnbPresence)
+#head(EstimatorAirbnbPresence)
 
 hist(EstimatorAirbnbPresence$DistCityHall)
 
@@ -651,8 +664,8 @@ central <- EstimatorAirbnbPresence %>%
   filter(DistCityHall <= breakDist, !is.na(ListingPerCapita)) %>%
   select(ListingPerCapita, DistCityHall, Ei, listMinoShares)
 
-central %>%
-  summarise(mean(ListingPerCapita))
+# central %>%
+#   summarise(mean(ListingPerCapita))
 
 
 # regression listing per capita of tracts above 10 km: 
@@ -660,42 +673,41 @@ peripheral <- EstimatorAirbnbPresence %>%
   filter(DistCityHall > breakDist, !is.na(ListingPerCapita)) %>%
   select(ListingPerCapita, DistCityHall, Ei, listMinoShares)
 
-summary(lm(log(ListingPerCapita) ~ log(DistCityHall), data = peripheral))
+#summary(lm(log(ListingPerCapita) ~ log(DistCityHall), data = peripheral))
 
 
-lab = as.data.frame (list_census_vectors('CA16') %>% 
+lab  <-  as.data.frame (list_census_vectors('CA16') %>% 
                        filter(vector %in% minorities) %>% 
                        select(vector, label))
 
 
 for (sample in c("all", "central", "peripheral")){
-  if (sample == "all") df = EstimatorAirbnbPresence
-  if (sample == "central") df = central
-  if (sample == "peripheral") df = peripheral
+  if (sample == "all") df <-  EstimatorAirbnbPresence
+  if (sample == "central") df <-  central
+  if (sample == "peripheral") df  <-  peripheral
   
-  f = paste0("scale(log(ListingPerCapita)) ~ scale(log(DistCityHall)) + ",
+  f <- paste0("scale(log(ListingPerCapita)) ~ scale(log(DistCityHall)) + ",
              paste0("scale(",listMinoShares[-1], ")", collapse = " + "))
   model <- lm(formula(f), data = df)
   print(paste0("obs = ", dim(df)[1]))
   print(summary(model))
   
-  coeffs = as.data.frame(summary(model)$coefficients)
-  coeffs$label = substr(rownames(coeffs), 7, 17)
-  res = data.frame(coeffs, lab[match(coeffs$label, lab$vector),])
+  coeffs <-  as.data.frame(summary(model)$coefficients)
+  coeffs$label <- substr(rownames(coeffs), 7, 17)
+  res  <-  data.frame(coeffs, lab[match(coeffs$label, lab$vector),])
   res[,c("label", "vector")] <- NULL
   assign(paste0("Results_", sample), res)
 }
 
-str(Results_all)
-reg_total = cbind(Results_all,Results_central, Results_peripheral)
+#str(Results_all)
+reg_total  <-  cbind(Results_all,Results_central, Results_peripheral)
 reg_total[,c("t.value", "Std..Error", "t.value.1", "Std..Error.1", "label.1.1", "t.value.2", "Std..Error.2", "label.1.2")] <- NULL
-colnames(reg_total) = c("est_all", "pval_all",  "minority",  "est_central", "pval_central", 
+colnames(reg_total)  <-  c("est_all", "pval_all",  "minority",  "est_central", "pval_central", 
                         "est_peripheral", "pval_peripheral")
-reg_total$variables = rownames(reg_total)
-reg_total$var = ifelse(is.na(reg_total$minority), as.character(reg_total$variables), as.character(reg_total$minority))
+reg_total$variables  <-  rownames(reg_total)
+reg_total$var  <-  ifelse(is.na(reg_total$minority), as.character(reg_total$variables), as.character(reg_total$minority))
 
 
-library(ggplot2)
 pall <- ggplot(reg_total, aes(x = var)) + 
   geom_bar(aes(y = est_all, fill = ifelse(pval_all < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") + 
   # scale_y_continuous(limits = c(-0.55, 0.55)) +
@@ -710,16 +722,14 @@ pper <- ggplot(reg_total, aes(x = var)) +
   #scale_y_continuous(limits = c(-0.55, 0.55)) + 
   coord_flip() +   theme(legend.title=element_blank()) 
 
-library(gridExtra)
 #grid.arrange(pall, pcent, pper)
 
 
 EstimatorAirbnbPrice <- data.frame(idata, EstimatorAirbnbPresence[match(idata$GeoUID, 
                                                                         EstimatorAirbnbPresence$GeoUID),])
-head(EstimatorAirbnbPrice)
-hist(EstimatorAirbnbPrice$priceperroom)
+# head(EstimatorAirbnbPrice)
+# hist(EstimatorAirbnbPrice$priceperroom)
 
-library(lme4)
 
 EstimatorAirbnbPrice_all <- EstimatorAirbnbPrice %>%
   filter(!is.na(priceperroom), priceperroom > 0) 
@@ -733,31 +743,31 @@ peripheral_P <- EstimatorAirbnbPrice_all %>%
 
 
 for (sample in c("all", "central", "peripheral")){
-  if (sample == "all") df = EstimatorAirbnbPrice_all
-  if (sample == "central") df = central_P
-  if (sample == "peripheral") df = peripheral_P
+  if (sample == "all") df <-  EstimatorAirbnbPrice_all
+  if (sample == "central") df  <-  central_P
+  if (sample == "peripheral") df  <-  peripheral_P
   
-  f = paste0("scale(priceperroom) ~ scale(log(DistCityHall)) + ",
+  f  <-  paste0("scale(priceperroom) ~ scale(log(DistCityHall)) + ",
              paste0("scale(",listMinoShares[-1], ")", collapse = " + "))
   model <- lm(formula(f), data = df)
   
   print(paste0("obs = ", dim(df)[1]))
   print(summary(model))
   
-  coeffs = as.data.frame(summary(model)$coefficients)
-  coeffs$label = substr(rownames(coeffs), 7, 17)
-  res = data.frame(coeffs, lab[match(coeffs$label, lab$vector),])
+  coeffs  <-  as.data.frame(summary(model)$coefficients)
+  coeffs$label <- substr(rownames(coeffs), 7, 17)
+  res  <-  data.frame(coeffs, lab[match(coeffs$label, lab$vector),])
   res[,c("label", "vector")] <- NULL
   assign(paste0("Results_", sample, "Price"), res)
 }
 
 
-reg_total2 = cbind(Results_allPrice,Results_centralPrice, Results_peripheralPrice)
+reg_total2  <-  cbind(Results_allPrice,Results_centralPrice, Results_peripheralPrice)
 reg_total2[,c("t.value", "Std..Error", "t.value.1", "Std..Error.1", "label.1.1", "t.value.2", "Std..Error.2", "label.1.2")] <- NULL
-colnames(reg_total2) = c("est_all", "pval_all",  "minority",  "est_central", "pval_central", 
+colnames(reg_total2) <-  c("est_all", "pval_all",  "minority",  "est_central", "pval_central", 
                          "est_peripheral", "pval_peripheral")
-reg_total2$variables = rownames(reg_total2)
-reg_total2$var = ifelse(is.na(reg_total2$minority), as.character(reg_total2$variables), 
+reg_total2$variables <-  rownames(reg_total2)
+reg_total2$var  <-  ifelse(is.na(reg_total2$minority), as.character(reg_total2$variables), 
                         as.character(reg_total2$minority))
 
 pall2 <- ggplot(reg_total2, aes(x = var)) + 
@@ -782,50 +792,50 @@ grid.arrange(pall, pall2,
 
 
 ############# Reardon segregation for AirBnB price per room
-cumulativeFrequency = function(distribution){
-  relativeDistribution = distribution / sum(distribution)
-  iterator = length(distribution) - 1
-  cumulativeRelative = seq(1:iterator)
+cumulativeFrequency  <-  function(distribution){
+  relativeDistribution  <-  distribution / sum(distribution)
+  iterator <-  length(distribution) - 1
+  cumulativeRelative  <-  seq(1:iterator)
   for (i in 1:iterator){
-    if (i == 1) cumulativeRelative[[i]] = relativeDistribution[[i]]
+    if (i == 1) cumulativeRelative[[i]] <-  relativeDistribution[[i]]
     if (i != 1) {
-      cumulativeRelative[[i]] = cumulativeRelative[[i-1]] +  relativeDistribution[[i]]
+      cumulativeRelative[[i]]  <-  cumulativeRelative[[i-1]] +  relativeDistribution[[i]]
     }}
   return(cumulativeRelative)
 }
-segFunction2 = function(distribution){
-  ordinalVariationIndexR = 4 * distribution * ( 1 - distribution)
+segFunction2 <-  function(distribution){
+  ordinalVariationIndexR <-  4 * distribution * ( 1 - distribution)
   return(ordinalVariationIndexR)
 }
-segIndex10 = function(tabOfSpatialUnits, distributionColNames, K = 10){
-  DistribCluster = colSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
-  Tcluster = sum(DistribCluster)
-  cumulativeDistributionCluster = cumulativeFrequency(DistribCluster)
-  tabOfSpatialUnits$t = rowSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
-  distributionColName = distributionColNames[1:(K-1)]
-  ReldistributionColNames = paste("Rel",distributionColName, sep="")
-  CumdistributionColNames = paste("Cum",distributionColName, sep="")
-  MSeg_Cols = paste("Seg", distributionColName, sep="")
-  tabOfSpatialUnits[,ReldistributionColNames] = tabOfSpatialUnits[,distributionColName] / tabOfSpatialUnits$t
-  tabOfSpatialUnits[,CumdistributionColNames[1]] = tabOfSpatialUnits[,ReldistributionColNames[1]]
-  tabOfSpatialUnits[,CumdistributionColNames[2]] = tabOfSpatialUnits[,ReldistributionColNames[2]] + tabOfSpatialUnits[,CumdistributionColNames[1]]
-  tabOfSpatialUnits[,CumdistributionColNames[3]] = tabOfSpatialUnits[,ReldistributionColNames[3]] + tabOfSpatialUnits[,CumdistributionColNames[2]]
-  tabOfSpatialUnits[,CumdistributionColNames[4]] = tabOfSpatialUnits[,ReldistributionColNames[4]] + tabOfSpatialUnits[,CumdistributionColNames[3]]
-  tabOfSpatialUnits[,CumdistributionColNames[5]] = tabOfSpatialUnits[,ReldistributionColNames[5]] + tabOfSpatialUnits[,CumdistributionColNames[4]]
-  tabOfSpatialUnits[,CumdistributionColNames[6]] = tabOfSpatialUnits[,ReldistributionColNames[6]] + tabOfSpatialUnits[,CumdistributionColNames[5]]
-  tabOfSpatialUnits[,CumdistributionColNames[7]] = tabOfSpatialUnits[,ReldistributionColNames[7]] + tabOfSpatialUnits[,CumdistributionColNames[6]]
-  tabOfSpatialUnits[,CumdistributionColNames[8]] = tabOfSpatialUnits[,ReldistributionColNames[8]] + tabOfSpatialUnits[,CumdistributionColNames[7]]
-  tabOfSpatialUnits[,CumdistributionColNames[9]] = tabOfSpatialUnits[,ReldistributionColNames[9]] + tabOfSpatialUnits[,CumdistributionColNames[8]]
-  tabOfSpatialUnits[,MSeg_Cols] = segFunction2(tabOfSpatialUnits[,CumdistributionColNames])
-  tabOfSpatialUnits$v = (1 / (K - 1)) * rowSums(tabOfSpatialUnits[,MSeg_Cols], na.rm = T)
-  Vcluster = (1 / (K - 1)) * sum(segFunction2(cumulativeDistributionCluster))
-  tabOfSpatialUnits$seg = (tabOfSpatialUnits$t / (Tcluster * Vcluster)) * (Vcluster - tabOfSpatialUnits$v)
-  segIndex = sum(tabOfSpatialUnits$seg, na.rm = T)
+segIndex10  <-  function(tabOfSpatialUnits, distributionColNames, K = 10){
+  DistribCluster  <-  colSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
+  Tcluster <-  sum(DistribCluster)
+  cumulativeDistributionCluster <-  cumulativeFrequency(DistribCluster)
+  tabOfSpatialUnits$t <-  rowSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
+  distributionColName <-  distributionColNames[1:(K-1)]
+  ReldistributionColNames  <-  paste("Rel",distributionColName, sep="")
+  CumdistributionColNames  <-  paste("Cum",distributionColName, sep="")
+  MSeg_Cols <-  paste("Seg", distributionColName, sep="")
+  tabOfSpatialUnits[,ReldistributionColNames] <-  tabOfSpatialUnits[,distributionColName] / tabOfSpatialUnits$t
+  tabOfSpatialUnits[,CumdistributionColNames[1]] <- tabOfSpatialUnits[,ReldistributionColNames[1]]
+  tabOfSpatialUnits[,CumdistributionColNames[2]]  <-  tabOfSpatialUnits[,ReldistributionColNames[2]] + tabOfSpatialUnits[,CumdistributionColNames[1]]
+  tabOfSpatialUnits[,CumdistributionColNames[3]] <-  tabOfSpatialUnits[,ReldistributionColNames[3]] + tabOfSpatialUnits[,CumdistributionColNames[2]]
+  tabOfSpatialUnits[,CumdistributionColNames[4]]  <-  tabOfSpatialUnits[,ReldistributionColNames[4]] + tabOfSpatialUnits[,CumdistributionColNames[3]]
+  tabOfSpatialUnits[,CumdistributionColNames[5]]  <-  tabOfSpatialUnits[,ReldistributionColNames[5]] + tabOfSpatialUnits[,CumdistributionColNames[4]]
+  tabOfSpatialUnits[,CumdistributionColNames[6]]  <-  tabOfSpatialUnits[,ReldistributionColNames[6]] + tabOfSpatialUnits[,CumdistributionColNames[5]]
+  tabOfSpatialUnits[,CumdistributionColNames[7]] <-  tabOfSpatialUnits[,ReldistributionColNames[7]] + tabOfSpatialUnits[,CumdistributionColNames[6]]
+  tabOfSpatialUnits[,CumdistributionColNames[8]] <-  tabOfSpatialUnits[,ReldistributionColNames[8]] + tabOfSpatialUnits[,CumdistributionColNames[7]]
+  tabOfSpatialUnits[,CumdistributionColNames[9]] <- tabOfSpatialUnits[,ReldistributionColNames[9]] + tabOfSpatialUnits[,CumdistributionColNames[8]]
+  tabOfSpatialUnits[,MSeg_Cols] <-  segFunction2(tabOfSpatialUnits[,CumdistributionColNames])
+  tabOfSpatialUnits$v <-  (1 / (K - 1)) * rowSums(tabOfSpatialUnits[,MSeg_Cols], na.rm = T)
+  Vcluster <- (1 / (K - 1)) * sum(segFunction2(cumulativeDistributionCluster))
+  tabOfSpatialUnits$seg  <-  (tabOfSpatialUnits$t / (Tcluster * Vcluster)) * (Vcluster - tabOfSpatialUnits$v)
+  segIndex <- sum(tabOfSpatialUnits$seg, na.rm = T)
   return(segIndex)
 }
 
-ReardonSegregationAirbnbPrice = segIndex10(tabOfSpatialUnits = city_tracts@data, distributionColNames = paste0("G", 1:10))
-EntropySegregationMinorities = cma_seg[cma_seg$CSD_UID == censusCodeMuni,"H"]
+ReardonSegregationAirbnbPrice <- segIndex10(tabOfSpatialUnits = city_tracts@data, distributionColNames = paste0("G", 1:10))
+EntropySegregationMinorities  <-  cma_seg[cma_seg$CSD_UID == censusCodeMuni,"H"]
 
 ReardonSegregationAirbnbPrice
 EntropySegregationMinorities
