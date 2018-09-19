@@ -522,17 +522,37 @@ library(rgeos)
 PTS <- as(rbnb_pts, "sf")
 POLY <- as(toronto_tracts, "sf")
 idata <- st_intersection(PTS, POLY)
-colnames(idata)
-rbnbPerTract <- idata %>%
+
+head(idata)
+idata$distribPrice <- cut2(idata$priceperroom, g = 10)
+intervals = levels(unique(idata$distribPrice))
+
+rbnbPerTract <- as.data.frame(idata %>%
   #group_by(CSD_UID) %>%
   count(GeoUID, sort = TRUE) %>%
-  select(GeoUID, n)
-listingPerCapita <- 1
+  select(GeoUID, n))[,1:2]
+
+rbnbDistributionPerTract <- as.data.frame(idata %>%
+  #group_by(CSD_UID) %>%
+  count(GeoUID, distribPrice) %>%
+  select(GeoUID, distribPrice, n))[,1:3]
+
+
+library(reshape2)
+tractDistrib <- dcast(rbnbDistributionPerTract, GeoUID ~ distribPrice)
+tractDistrib[is.na(tractDistrib)] <- 0
+tractDistrib <- tractDistrib[,c("GeoUID", intervals)]
+colnames(tractDistrib)[2:11] <- paste0("G", 1:10)
+
+lookupDistrib = data.frame('name' = paste0("G", 1:10), 'interval' = intervals)
 
 listingCounts = as.data.frame(rbnbPerTract[,1:2])
 toronto_tracts@data <- data.frame(toronto_tracts@data,
          listingCounts[match(toronto_tracts@data$GeoUID,
                              listingCounts$GeoUID),])
+toronto_tracts@data <- data.frame(toronto_tracts@data,
+                                  tractDistrib[match(toronto_tracts@data$GeoUID,
+                                                      tractDistrib$GeoUID),])
 toronto_tracts@data <- data.frame(toronto_tracts@data,
          tractTable[match(toronto_tracts@data$GeoUID,
                           tractTable$GeoUID),])
@@ -709,7 +729,17 @@ grid.arrange(pall, pall2,
 
 
 ############# Reardon segregation for AirBnB price per room
-
+cumulativeFrequency = function(distribution){
+  relativeDistribution = distribution / sum(distribution)
+  iterator = length(distribution) - 1
+  cumulativeRelative = seq(1:iterator)
+  for (i in 1:iterator){
+    if (i == 1) cumulativeRelative[[i]] = relativeDistribution[[i]]
+    if (i != 1) {
+      cumulativeRelative[[i]] = cumulativeRelative[[i-1]] +  relativeDistribution[[i]]
+    }}
+  return(cumulativeRelative)
+}
 segFunction2 = function(distribution){
   ordinalVariationIndexR = 4 * distribution * ( 1 - distribution)
   return(ordinalVariationIndexR)
@@ -741,16 +771,10 @@ segIndex10 = function(tabOfSpatialUnits, distributionColNames, K = 10){
   return(segIndex)
 }
 
-head(EstimatorAirbnbPresence)
-segIndex10
+segIndex10(tabOfSpatialUnits = toronto_tracts@data, distributionColNames = paste0("G", 1:10))
 
-IDCluster = clustersNumbers[i,1]
-head(clustersNumbers)
 
-communesClust = subset(communesMembership, CLUSTERID == IDCluster)
-segIndexWages = segIndex10(communesClust, F_Cols)
-cluster_sums[i,"segIndexWages"] = segIndexWages
-}
+
 
 #### TO DO
 #
@@ -758,7 +782,7 @@ cluster_sums[i,"segIndexWages"] = segIndexWages
 #  X  report tract val to airbnb table
 #  X  regress value of listing with variable (lmer)
 #     segregation indices : moran/duncan/entropy for minorities
-#     reardon for airbnb
+#  X  reardon for airbnb
 #     markdown ok
 #     slides
 
