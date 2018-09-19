@@ -545,7 +545,7 @@ toronto_tracts@data <- data.frame(toronto_tracts@data,
 
 toronto_tracts@data$ListingPerCapita = toronto_tracts@data$n / toronto_tracts@data$Population
 toronto_tracts@data <- toronto_tracts@data %>% 
-  mutate_at(minorities, funs(Share = ./ Population) )
+  mutate_at(minorities, funs(Share =./ Population) )
 
 summary(toronto_tracts@data)
 centroidsToronto = gCentroid(toronto_tracts,byid=TRUE)
@@ -595,26 +595,170 @@ lab = as.data.frame (list_census_vectors('CA16') %>%
                        select(vector, label))
 
 
-
 for (sample in c("all", "central", "peripheral")){
   if (sample == "all") df = EstimatorAirbnbPresence
   if (sample == "central") df = central
   if (sample == "peripheral") df = peripheral
-  
-  f = paste0("log(ListingPerCapita) ~ log(DistCityHall) + ",
-             paste(listMinoShares, collapse = " + "))
+
+  f = paste0("scale(log(ListingPerCapita)) ~ scale(log(DistCityHall)) + ",
+             paste0("scale(",listMinoShares[-1], ")", collapse = " + "))
+  model <- lm(formula(f), data = df)
   print(paste0("obs = ", dim(df)[1]))
-  print(summary(lm(formula(f), data = df)))
+  print(summary(model))
+  
+  coeffs = as.data.frame(summary(model)$coefficients)
+  coeffs$label = substr(rownames(coeffs), 7, 17)
+  res = data.frame(coeffs, lab[match(coeffs$label, lab$vector),])
+  res[,c("label", "vector")] <- NULL
+  assign(paste0("Results_", sample), res)
+}
+
+str(Results_all)
+reg_total = cbind(Results_all,Results_central, Results_peripheral)
+reg_total[,c("t.value", "Std..Error", "t.value.1", "Std..Error.1", "label.1.1", "t.value.2", "Std..Error.2", "label.1.2")] <- NULL
+colnames(reg_total) = c("est_all", "pval_all",  "minority",  "est_central", "pval_central", 
+                        "est_peripheral", "pval_peripheral")
+reg_total$variables = rownames(reg_total)
+reg_total$var = ifelse(is.na(reg_total$minority), as.character(reg_total$variables), as.character(reg_total$minority))
+
+
+library(ggplot2)
+pall <- ggplot(reg_total, aes(x = var)) + 
+  geom_bar(aes(y = est_all, fill = ifelse(pval_all < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") + 
+ # scale_y_continuous(limits = c(-0.55, 0.55)) +
+  coord_flip() + theme(legend.title=element_blank()) 
+pcent <- ggplot(reg_total, aes(x = var)) + 
+  geom_bar(aes(y = est_central, fill = ifelse(pval_central < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") +  
+ # scale_y_continuous(limits = c(-0.55, 0.55)) + 
+  coord_flip() +   theme(legend.title=element_blank() ) 
+
+pper <- ggplot(reg_total, aes(x = var)) + 
+  geom_bar(aes(y = est_peripheral, fill = ifelse(pval_peripheral < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") +
+  #scale_y_continuous(limits = c(-0.55, 0.55)) + 
+  coord_flip() +   theme(legend.title=element_blank()) 
+
+library(gridExtra)
+#grid.arrange(pall, pcent, pper)
+
+
+EstimatorAirbnbPrice <- data.frame(idata, EstimatorAirbnbPresence[match(idata$GeoUID, 
+                                                                        EstimatorAirbnbPresence$GeoUID),])
+head(EstimatorAirbnbPrice)
+hist(EstimatorAirbnbPrice$priceperroom)
+
+library(lme4)
+
+EstimatorAirbnbPrice_all <- EstimatorAirbnbPrice %>%
+  filter(!is.na(priceperroom), priceperroom > 0) 
+# mean value of listing per capita of tracts between 0 & 10 km: 
+central_P <- EstimatorAirbnbPrice_all %>%
+  filter(DistCityHall <= 10000) #%>%   select(ListingPerCapita, DistCityHall, Ei, listMinoShares)
+
+peripheral_P <- EstimatorAirbnbPrice_all %>%
+  filter(DistCityHall > 1000) #%>%   select(ListingPerCapita, DistCityHall, Ei, listMinoShares)
+
+
+
+for (sample in c("all", "central", "peripheral")){
+  if (sample == "all") df = EstimatorAirbnbPrice_all
+  if (sample == "central") df = central_P
+  if (sample == "peripheral") df = peripheral_P
+  
+  f = paste0("scale(priceperroom) ~ scale(log(DistCityHall)) + ",
+             paste0("scale(",listMinoShares[-1], ")", collapse = " + "))
+  model <- lm(formula(f), data = df)
+  
+  print(paste0("obs = ", dim(df)[1]))
+  print(summary(model))
+  
+  coeffs = as.data.frame(summary(model)$coefficients)
+  coeffs$label = substr(rownames(coeffs), 7, 17)
+  res = data.frame(coeffs, lab[match(coeffs$label, lab$vector),])
+  res[,c("label", "vector")] <- NULL
+  assign(paste0("Results_", sample, "Price"), res)
 }
 
 
-library(lme4)
+reg_total2 = cbind(Results_allPrice,Results_centralPrice, Results_peripheralPrice)
+reg_total2[,c("t.value", "Std..Error", "t.value.1", "Std..Error.1", "label.1.1", "t.value.2", "Std..Error.2", "label.1.2")] <- NULL
+colnames(reg_total2) = c("est_all", "pval_all",  "minority",  "est_central", "pval_central", 
+                        "est_peripheral", "pval_peripheral")
+reg_total2$variables = rownames(reg_total2)
+reg_total2$var = ifelse(is.na(reg_total2$minority), as.character(reg_total2$variables), 
+                        as.character(reg_total2$minority))
+
+pall2 <- ggplot(reg_total2, aes(x = var)) + 
+  geom_bar(aes(y = est_all, fill = ifelse(pval_all < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") + 
+ # scale_y_continuous(limits = c(-0.55, 0.55)) +
+  coord_flip() + theme(legend.title=element_blank()) 
+pcent2 <- ggplot(reg_total2, aes(x = var)) + 
+  geom_bar(aes(y = est_central, fill = ifelse(pval_central < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") +  
+ # scale_y_continuous(limits = c(-0.55, 0.55)) + 
+  coord_flip() + theme(legend.title=element_blank() ) 
+pper2 <- ggplot(reg_total2, aes(x = var)) + 
+  geom_bar(aes(y = est_peripheral, fill = ifelse(pval_peripheral < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") +
+  #scale_y_continuous(limits = c(-0.55, 0.55)) +
+  coord_flip() + 
+  theme(legend.title=element_blank()) 
+
+grid.arrange(pall, pall2, 
+             pcent, pcent2, 
+             pper, pper2, 
+             ncol = 2)
+
+
+
+############# Reardon segregation for AirBnB price per room
+
+segFunction2 = function(distribution){
+  ordinalVariationIndexR = 4 * distribution * ( 1 - distribution)
+  return(ordinalVariationIndexR)
+}
+segIndex10 = function(tabOfSpatialUnits, distributionColNames, K = 10){
+  DistribCluster = colSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
+  Tcluster = sum(DistribCluster)
+  cumulativeDistributionCluster = cumulativeFrequency(DistribCluster)
+  tabOfSpatialUnits$t = rowSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
+  distributionColName = distributionColNames[1:(K-1)]
+  ReldistributionColNames = paste("Rel",distributionColName, sep="")
+  CumdistributionColNames = paste("Cum",distributionColName, sep="")
+  MSeg_Cols = paste("Seg", distributionColName, sep="")
+  tabOfSpatialUnits[,ReldistributionColNames] = tabOfSpatialUnits[,distributionColName] / tabOfSpatialUnits$t
+  tabOfSpatialUnits[,CumdistributionColNames[1]] = tabOfSpatialUnits[,ReldistributionColNames[1]]
+  tabOfSpatialUnits[,CumdistributionColNames[2]] = tabOfSpatialUnits[,ReldistributionColNames[2]] + tabOfSpatialUnits[,CumdistributionColNames[1]]
+  tabOfSpatialUnits[,CumdistributionColNames[3]] = tabOfSpatialUnits[,ReldistributionColNames[3]] + tabOfSpatialUnits[,CumdistributionColNames[2]]
+  tabOfSpatialUnits[,CumdistributionColNames[4]] = tabOfSpatialUnits[,ReldistributionColNames[4]] + tabOfSpatialUnits[,CumdistributionColNames[3]]
+  tabOfSpatialUnits[,CumdistributionColNames[5]] = tabOfSpatialUnits[,ReldistributionColNames[5]] + tabOfSpatialUnits[,CumdistributionColNames[4]]
+  tabOfSpatialUnits[,CumdistributionColNames[6]] = tabOfSpatialUnits[,ReldistributionColNames[6]] + tabOfSpatialUnits[,CumdistributionColNames[5]]
+  tabOfSpatialUnits[,CumdistributionColNames[7]] = tabOfSpatialUnits[,ReldistributionColNames[7]] + tabOfSpatialUnits[,CumdistributionColNames[6]]
+  tabOfSpatialUnits[,CumdistributionColNames[8]] = tabOfSpatialUnits[,ReldistributionColNames[8]] + tabOfSpatialUnits[,CumdistributionColNames[7]]
+  tabOfSpatialUnits[,CumdistributionColNames[9]] = tabOfSpatialUnits[,ReldistributionColNames[9]] + tabOfSpatialUnits[,CumdistributionColNames[8]]
+  tabOfSpatialUnits[,MSeg_Cols] = segFunction2(tabOfSpatialUnits[,CumdistributionColNames])
+  tabOfSpatialUnits$v = (1 / (K - 1)) * rowSums(tabOfSpatialUnits[,MSeg_Cols], na.rm = T)
+  Vcluster = (1 / (K - 1)) * sum(segFunction2(cumulativeDistributionCluster))
+  tabOfSpatialUnits$seg = (tabOfSpatialUnits$t / (Tcluster * Vcluster)) * (Vcluster - tabOfSpatialUnits$v)
+  segIndex = sum(tabOfSpatialUnits$seg, na.rm = T)
+  return(segIndex)
+}
+
+head(EstimatorAirbnbPresence)
+segIndex10
+
+IDCluster = clustersNumbers[i,1]
+head(clustersNumbers)
+
+communesClust = subset(communesMembership, CLUSTERID == IDCluster)
+segIndexWages = segIndex10(communesClust, F_Cols)
+cluster_sums[i,"segIndexWages"] = segIndexWages
+}
+
 #### TO DO
-# add names of variable to regression results
-# report tract val to airbnb table
-# regress value of listing with variable (lmer)
-# segregation indices : moran/duncan/entropy for minorities
-# reardon for airbnb
-# markdown ok
-# slides
+#
+#  X  add names of variable to regression results
+#  X  report tract val to airbnb table
+#  X  regress value of listing with variable (lmer)
+#     segregation indices : moran/duncan/entropy for minorities
+#     reardon for airbnb
+#     markdown ok
+#     slides
 
