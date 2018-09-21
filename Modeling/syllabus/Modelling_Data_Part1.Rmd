@@ -95,42 +95,56 @@ lookup$property_group <- c(
   'home', 'other', 'other', 'hotel'
 )
 
-df <-  data.frame(df,lookup[match(df$property_type, lookup$type),] )
-# dfh = subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood) & df$room_type != "Shared room")
-dfh  <-  subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood))
-dfh$property_group <- NULL
-dfhu  <-  dfh[!duplicated(dfh$host_id),]
+
+
+dfb = data.frame(df,lookup[match(df$property_type, lookup$type),] )
+ # dfh = subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood) & df$room_type != "Shared room")
+dfh = subset(dfb, property_group == 'home' & as.character(dfb$host_neighbourhood) == as.character(df$neighbourhood))
 dim(dfh)[1] - dim(df)[1]
+
+dfh$property_group <- NULL
+dfhu = dfh[!duplicated(dfh$host_id),]
 dim(dfhu)[1] - dim(dfh)[1]
 ```
 
 
-```{r selectRecent}
+```{r cleaninginactive}
 dfhu$year  <-  as.numeric(substr(dfhu$last_review, 1, 4))
-dfhun <-  subset(dfhu, year >= 2017)
+dfhun = subset(dfhu, year >= 2017)
 dim(dfhun)[1] - dim(dfhu)[1]
 ```
 
 
-
 ```{r estimatePrice}
 dfhun$numPrice <- as.numeric(gsub("[$]",'',dfhun$price))
-summary(dfhun$room_type)
+
 final  <-  subset(dfhun, room_type != "Shared room")
 
 final$rooms  <-  ifelse(final$bedrooms == 0, 1, final$bedrooms)
 final$priceperroom  <-  as.numeric(ifelse(final$room_type == T,  final$numPrice,  final$numPrice / final$rooms))
-dim(final) / dim(df)
+
+dim(final)[1] / dim(df)[1]
+
+
+final <- left_join(df, lookup, by = c("property_type" = "type")) %>% 
+  mutate(year = as.numeric(substr(last_review, 1, 4)),
+         numPrice = as.numeric(gsub("[$]",'', price)),
+         rooms = ifelse(bedrooms == 0, 1, bedrooms),
+         priceperroom = as.numeric(ifelse(room_type == T,  numPrice,numPrice / rooms))) %>% 
+  filter(property_group == 'home' & 
+           as.character(host_neighbourhood) == as.character(neighbourhood) & 
+           !duplicated(host_id) & 
+           year >= 2017 & room_type != "Shared room")  
+ 
+
 ```
 
 
 
 
-##Census data of all Canadians Metros
+##Census data of all Canadian Metros
 
 ```{r censusDiversityFunctions, include=FALSE}
-
-
 
 diversity_index <- function(cma) {
   
@@ -288,7 +302,7 @@ diversity_csd <- function(cma) {
 
 
 
-```{r applyCensusDiversityFunctions}
+```{r applyCensusDiversityFunctions, message=F, warning=F, include=F}
 # Apply function to get EI for all CSD for all Canadian CMAS
 cmas <- list_census_regions("CA16") %>% filter(level == "CMA") %>% select(region, name, pop)
 
@@ -441,15 +455,17 @@ segIndex10  <-  function(tabOfSpatialUnits, distributionColNames, K = 10){
 ```
 
 
-```{r applyCensusSegregationFunctions}
+```{r applyCensusSegregationFunctions, include=F}
 ############# compute segregation for all metros and plot comparison of index
 
 cma_seg <- purrr::map_df(cmas$region, .f = segregation_csd) %>% 
   left_join(cmas, by = c("cma"="region")) %>% 
   select(`Region Name`=name.x, `CMA Name`=name.y, CMA = cma,Population = csdpop, `CMA Population` = pop, Ei = csdei, H) %>% 
   ungroup()
+```
 
 
+```{r applyCensusSegregationFunctionsBis}
 ggplot(bind_rows(cma_seg %>% 
                    filter(Population > 100000) %>% 
                    clean_names2 %>% 
@@ -492,9 +508,8 @@ ggplot(cma_seg%>% filter(Population > 100000) %>% clean_names2 %>%
 
 ##Start city specific analysis
 
-```{r selectCity}
+```{r selectCity, warning=F, message=F}
 city <-  "toronto"
-
 
 if(city == "toronto"){
   citynames  <-  unique(torontoAirbnb$city)
@@ -522,7 +537,7 @@ city_data <-  subset(final, city %in% citynames)
 ```
 
 
-```{r selectCityInCensus}
+```{r selectCityInCensus, include=F}
 cma.ct <- get_census("CA16", regions=list(CMA=censuscode), 
                      vectors = minority_vectors, level = "CT",
                      labels = "short", geo_format = NA)
@@ -535,7 +550,9 @@ csd.geo <- get_census_geometry("CA16", regions=list(CSD=censuscode),
 
 csd.csd.geo <- get_census_geometry("CA16", regions=list(CSD=censuscode), 
                                    level = "CSD", geo_format = "sf")
+```
 
+```{r selectCityInCensusBis, warning=F, message=F}
 tractTable <- diversity_index(censuscode)
 
 
@@ -584,20 +601,22 @@ map
 
 
 
-```{r selectCityInsegregation}
+```{r selectCityInsegregation, include = F}
 long.ct <- get_census("CA16", regions=list(CSD=censusCodeMuni), 
                       vectors = minority_vectors, level = "CT",
                       labels = "detailed", geo_format = "sf")
 names(long.ct)[14:27] <- c("Total","White","South Asian","Chinese","Black","Filipino",
                            "Latin American","Arab","SE Asian","West Asian","Korean",
                            "Japanese","Other","Multiple")
+```
+
+
+```{r selectCityInsegregationBis}
 
 long.ct.tidy <- long.ct %>% 
   select(-White) %>% 
   tidyr::gather(Group, Count, `South Asian`:Multiple) %>% 
   mutate(Proportion = Count/Total)
-
-#head(as.data.frame(long.ct.tidy))
 
 ggplot(long.ct.tidy) + geom_sf(aes(fill = Proportion^(1/2), colour = Proportion^(1/2))) + 
   scale_fill_viridis_c(option = 3, guide = FALSE) + 
@@ -736,7 +755,7 @@ hist(EstimatorAirbnbPresence$DistCityHall)
 
 
 
-```{r vizAibnbMinoritiesAndDistance}
+```{r vizAibnbMinoritiesAndDistance, message=F, warning=F}
 
 ggplot(EstimatorAirbnbPresence, aes(x = DistCityHall, y = ListingPerCapita)) +
   geom_point() + geom_smooth() + scale_x_log10() + scale_y_log10() +
@@ -891,16 +910,3 @@ EntropySegregationMinorities  <-  cma_seg[cma_seg$CSD_UID == censusCodeMuni,"H"]
 ReardonSegregationAirbnbPrice
 EntropySegregationMinorities
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-
-
