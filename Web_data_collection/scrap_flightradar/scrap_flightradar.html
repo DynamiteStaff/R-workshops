@@ -124,7 +124,11 @@ $(document).ready(function () {
 
 <pre class="r"><code>library(rvest)
 library(tidyverse)
-library(knitr)</code></pre>
+library(knitr)
+library(plyr)
+library(dplyr)
+library(jsonlite)
+library(lubridate)</code></pre>
 <div id="scrape-all-departures-or-arrivals-from-flightradar-website" class="section level1">
 <h1>Scrape all departures or arrivals from FlightRadar website</h1>
 <p>We see two methods to capture departures and arrivals data for airport on FlightRadar website, using an headless browser, and using XHR request.</p>
@@ -143,11 +147,12 @@ devtools::install_github(&quot;ropensci/RSelenium&quot;)</code></pre>
 <p>Depending of your existing configuration and OS you probably need to install some dependent software packages.</p>
 <pre class="r"><code>library(RSelenium)</code></pre>
 <p>It’s possible to use directly Selenium with your browser, but we prefer to use directly a server version. Why ? Because using server version of Selenium, you have the possibility a) to sent command on local or remote server running Selenium b) which run a different browsers and/or OS, c) to distribute tests over multiple machines.</p>
+<p>Selenium is a fast moving project, and some release are really buggy, so try to choose a stable version, and don’t deseperate.</p>
 <div id="run-a-selenium-server" class="section level3">
 <h3>Run a Selenium server</h3>
 <p>Install Docker on your OS using docker documentation.</p>
 <p>When it’s done, <code>pull and run</code> <a href="https://github.com/SeleniumHQ/docker-selenium">one of</a> Docker Selenium-Server image using terminal. For this tutorial we use Firefox !</p>
-<pre class="bash"><code>sudo docker run -d -p 4445:4444 selenium/standalone-firefox:2.54.0</code></pre>
+<pre class="bash"><code>sudo docker run -d -p 4445:4444 selenium/standalone-firefox:3.14.0-arsenic</code></pre>
 <p>Type <code>sudo docker ps</code> to see if server correctly run and listen to port 4445.</p>
 </div>
 <div id="connect-to-selenium-server" class="section level3">
@@ -156,53 +161,62 @@ devtools::install_github(&quot;ropensci/RSelenium&quot;)</code></pre>
 <pre class="r"><code>remDr &lt;- remoteDriver(remoteServerAddr = &quot;localhost&quot;, port = 4445L)
 remDr$open()</code></pre>
 <pre><code>## [1] &quot;Connecting to remote server&quot;
-## $applicationCacheEnabled
-## [1] TRUE
-## 
-## $rotatable
+## $acceptInsecureCerts
 ## [1] FALSE
-## 
-## $handlesAlerts
-## [1] TRUE
-## 
-## $databaseEnabled
-## [1] TRUE
-## 
-## $version
-## [1] &quot;44.0&quot;
-## 
-## $platform
-## [1] &quot;LINUX&quot;
-## 
-## $nativeEvents
-## [1] FALSE
-## 
-## $acceptSslCerts
-## [1] TRUE
-## 
-## $webdriver.remote.sessionid
-## [1] &quot;98044ba3-34e5-4c7c-bb04-15e508d06a02&quot;
-## 
-## $webStorageEnabled
-## [1] TRUE
-## 
-## $locationContextEnabled
-## [1] TRUE
 ## 
 ## $browserName
 ## [1] &quot;firefox&quot;
 ## 
-## $takesScreenshot
+## $browserVersion
+## [1] &quot;61.0.1&quot;
+## 
+## $`moz:accessibilityChecks`
+## [1] FALSE
+## 
+## $`moz:headless`
+## [1] FALSE
+## 
+## $`moz:processID`
+## [1] 2863
+## 
+## $`moz:profile`
+## [1] &quot;/tmp/rust_mozprofile.5VaH46yuMkXd&quot;
+## 
+## $`moz:useNonSpecCompliantPointerOrigin`
+## [1] FALSE
+## 
+## $`moz:webdriverClick`
 ## [1] TRUE
 ## 
-## $javascriptEnabled
-## [1] TRUE
+## $pageLoadStrategy
+## [1] &quot;normal&quot;
 ## 
-## $cssSelectorsEnabled
-## [1] TRUE
+## $platformName
+## [1] &quot;linux&quot;
+## 
+## $platformVersion
+## [1] &quot;4.15.0-34-generic&quot;
+## 
+## $rotatable
+## [1] FALSE
+## 
+## $timeouts
+## $timeouts$implicit
+## [1] 0
+## 
+## $timeouts$pageLoad
+## [1] 300000
+## 
+## $timeouts$script
+## [1] 30000
+## 
+## 
+## $webdriver.remote.sessionid
+## [1] &quot;6fec88aa-5a66-48cd-ad32-ebc5652fa6b3&quot;
 ## 
 ## $id
-## [1] &quot;98044ba3-34e5-4c7c-bb04-15e508d06a02&quot;</code></pre>
+## [1] &quot;6fec88aa-5a66-48cd-ad32-ebc5652fa6b3&quot;</code></pre>
+<pre class="r"><code>remDr$maxWindowSize()</code></pre>
 </div>
 <div id="basic-command-for-rselenium" class="section level3">
 <h3>Basic command for RSelenium</h3>
@@ -235,7 +249,7 @@ remDr$open()</code></pre>
 <p>Load the page in the selenium server</p>
 <pre class="r"><code>remDr$navigate(&quot;https://www.flightradar24.com/data/airports/bod/arrivals&quot;)
 Sys.sleep(5) # time to load !
-remDr$screenshot(display = TRUE)</code></pre>
+remDr$screenshot(file = &quot;screenshoot.png&quot;)</code></pre>
 <p>Building XPATH correct expression could be difficult. A good way to test validity of your XPATH expressions was to use an interactive way, with web developper console.</p>
 <p>Clic on console tab :</p>
 <p><img src="data:image/png;base64,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" /></p>
@@ -249,7 +263,7 @@ remDr$screenshot(display = TRUE)</code></pre>
 <pre class="r"><code>loadmorebutton &lt;- remDr$findElements(using = 'xpath', &quot;//button[@class='btn btn-table-action btn-flights-load' and not(contains(@style,'display: none;'))]&quot;)</code></pre>
 <p>Display the text of each element retrieved by function <code>findElements()</code> using the <code>getElementText() function</code></p>
 <pre class="r"><code>unlist(lapply(loadmorebutton, function(x){x$getElementText()}))</code></pre>
-<pre><code>## [1] &quot;Load earlier flights&quot; &quot;Load later flights&quot;</code></pre>
+<pre><code>## [1] &quot;&quot; &quot;&quot;</code></pre>
 <p>Now, how to simulate a clic on one of this button ?</p>
 <p>An easy way was to call <code>clickElement()</code> function on the first loadmorebutton webelement :</p>
 <pre class="r"><code>tryCatch({
@@ -258,17 +272,23 @@ suppressMessages({
 error = function(e) {
     loadmorebutton[[1]]$errorDetails()$message
   })</code></pre>
-<pre><code>## [1] &quot;Element is not clickable at point (502, 20.666671752929688). Other element would receive the click: &lt;div class=\&quot;nav-container-bar\&quot;&gt;&lt;/div&gt;\nCommand duration or timeout: 72 milliseconds\nBuild info: version: '2.52.0', revision: '4c2593c', time: '2016-02-11 19:06:42'\nSystem info: host: '54db0de2afe5', ip: '172.17.0.2', os.name: 'Linux', os.arch: 'amd64', os.version: '4.15.0-34-generic', java.version: '1.8.0_45-internal'\nDriver info: org.openqa.selenium.firefox.FirefoxDriver\nCapabilities [{applicationCacheEnabled=true, rotatable=false, handlesAlerts=true, databaseEnabled=true, version=44.0, platform=LINUX, nativeEvents=false, acceptSslCerts=true, webStorageEnabled=true, locationContextEnabled=true, browserName=firefox, takesScreenshot=true, javascriptEnabled=true, cssSelectorsEnabled=true}]\nSession ID: 4010c3ea-0887-42d8-9e40-b2df0a1ee33b&quot;</code></pre>
 <p>This command return an error message (if not, you’re lucky !), not very explicit, so if you want more details, you could call the function <code>errorDetails()</code> like our <code>trycatch</code> block.</p>
 <p>An element of the webpage overlapp our button, so browser say us that’s not possible to clic on this webelement. Use snapshot function to see the page :</p>
-<pre class="r"><code>remDr$screenshot(file = 'screenshoot.png' )</code></pre>
+<pre class="r"><code>remDr$screenshot(file = 'screenshoot_overlap.png' )</code></pre>
 <p>If we hide these elements using XPath and javascript injection, everything goes to normal. First we accept cookies.</p>
-<pre class="r"><code>cookiesButton &lt;- remDr$findElement(using = 'xpath',&quot;//div[@class='important-banner__close']&quot;)
-cookiesButton$clickElement()
-remDr$screenshot(file = 'screenshoot.png' )</code></pre>
+<pre class="r"><code>hideCookie &lt;- function (x){
+  cookiesButton &lt;- x$findElement(using = 'xpath',&quot;//div[@class='important-banner__close']&quot;) 
+  cookiesButton$clickElement()
+}
+
+hideCookie(remDr)
+remDr$screenshot(file = 'screenshoot_hide.png')</code></pre>
 <p>The navbar element create problem, so we hide it using javascript injection :</p>
-<pre class="r"><code>script &lt;- &quot;document.getElementById('navContainer').hidden = true;&quot;
-remDr$executeScript(script)</code></pre>
+<pre class="r"><code>hideNavBar &lt;- function (x) {
+  script &lt;- &quot;document.getElementById('navContainer').hidden = true;&quot;
+  x$executeScript(script)
+}
+hideNavBar(remDr)</code></pre>
 <pre><code>## list()</code></pre>
 <p>Now you can <code>clickElement()</code> without problem :)</p>
 <pre class="r"><code>tryCatch({
@@ -290,26 +310,39 @@ error = function(e) {
 Show/hide
 </button>
 <div id="spoiler" style="display:none">
+<pre class="r"><code> remDr$refresh() # reload page
+ Sys.sleep(5) # time to load !
+ 
+ hideNavBar(remDr) </code></pre>
+<pre><code>## list()</code></pre>
 <pre class="r"><code> searchElements &lt;- function() { 
    elements &lt;- remDr$findElements(using = 'xpath', &quot;//button[@class='btn btn-table-action btn-flights-load' and not(contains(@style,'display: none;'))]&quot;)
    return(elements)
    }
  
 clic &lt;- function(x){
-  Sys.sleep(3) # time to load
+  print(paste(&quot;Clic on &quot;, x$getElementText() ,&quot; button&quot;)) 
   x$clickElement()
+  Sys.sleep(5) # time to load
  }
  
-elements &lt;- searchElements()
-while(length(elements) &gt; 0)
-{
+loadmorebutton &lt;- searchElements()
+nbElements &lt;- length(loadmorebutton)
+
+while( nbElements &gt; 0)
+{  
+   print(paste(&quot;nb of button &gt;&quot;, nbElements))
    lapply(loadmorebutton, clic)
-   elements &lt;- searchElements()
-}
-
-Sys.sleep(5) # time to load
-
-remDr$screenshot(display = TRUE)</code></pre>
+   Sys.sleep(5) # time to load
+   loadmorebutton &lt;- searchElements()
+   nbElements &lt;- length(loadmorebutton)
+}</code></pre>
+<pre><code>## [1] &quot;nb of button &gt; 2&quot;
+## [1] &quot;Clic on  Load earlier flights  button&quot;
+## [1] &quot;Clic on  Load later flights  button&quot;
+## [1] &quot;nb of button &gt; 1&quot;
+## [1] &quot;Clic on  Load earlier flights  button&quot;</code></pre>
+<p>But we only have the number of clic and screenshot return only part of the viewer. In the next exercice we try to return all data on the page for the first result day after all these clics.</p>
 </div>
 <ul>
 <li>Extract data for only one day using XPATH and Rvest !</li>
@@ -321,20 +354,27 @@ Show/hide
 </button>
 <div id="spoiler2" style="display:none">
 <p>We use the already discussed library nammed <code>rvest</code> to prepare data for dataframe.</p>
-<pre class="r"><code>library(rvest)
+<pre class="r"><code>src &lt;- remDr$getPageSource()[[1]]  %&gt;% read_html()
 
-src &lt;- remDr$getPageSource()[[1]]  %&gt;% read_html()
+searchDateElements &lt;- function() { 
+   elements &lt;- remDr$findElements(using = 'xpath',&quot;//*[contains(@class,'row-date-separator')]/td&quot;)
+   return(elements)
+}
+
+# get the first date
+flightDateElements &lt;- searchDateElements()
+flightDate &lt;- flightDateElements[[1]]$getElementText()[[1]]
 
 column &lt;- function(x) src %&gt;% html_nodes(xpath = x) %&gt;% html_text(trim=TRUE)
 
 df &lt;- data.frame(
-  hour = column(&quot;//tr[@data-date='Tuesday, Sep 18']//td[1]/text()&quot;),
-  from = column(&quot;//tr[@data-date='Tuesday, Sep 18']//span[@class='hide-mobile-only ng-binding']/text()&quot;),
-  code = column(&quot;//tr[@data-date='Tuesday, Sep 18']//div[@ng-show='(objFlight.flight.airport.origin)']//a//text()&quot;),
-  airline = column(&quot;//tr[@data-date='Tuesday, Sep 18']//td[@class='cell-airline']//a//text()&quot;),
-  plane = column(&quot;//tr[@data-date='Tuesday, Sep 18']//span[@class='notranslate ng-binding']/text()&quot;),
-  planecode =column(&quot;//tr[@data-date='Tuesday, Sep 18']//a[@ng-show='(objFlight.flight.aircraft.registration)']//text()&quot;),
-  info = column(&quot;//tr[@data-date='Tuesday, Sep 18']//td[7]&quot;),
+  hour = column(paste(&quot;//tr[@data-date='&quot;,flightDate,&quot;']//td[1]/text()&quot;,sep=&quot;&quot;)),
+  from = column(paste(&quot;//tr[@data-date='&quot;,flightDate,&quot;']//span[@class='hide-mobile-only ng-binding']/text()&quot;,sep=&quot;&quot;)),
+  code = column(paste(&quot;//tr[@data-date='&quot;,flightDate,&quot;']//div[@ng-show='(objFlight.flight.airport.origin)']//a//text()&quot;,sep=&quot;&quot;)),
+  airline = column(paste(&quot;//tr[@data-date='&quot;,flightDate,&quot;']//td[@class='cell-airline']//a//text()&quot;,sep=&quot;&quot;)),
+  plane = column(paste(&quot;//tr[@data-date='&quot;,flightDate,&quot;']//span[@class='notranslate ng-binding']/text()&quot;,sep=&quot;&quot;)),
+  planecode =column(paste(&quot;//tr[@data-date='&quot;,flightDate,&quot;']//a[@ng-show='(objFlight.flight.aircraft.registration)']//text()&quot;,sep=&quot;&quot;)),
+  info = column(paste(&quot;//tr[@data-date='&quot;,flightDate,&quot;']//td[7]&quot;,sep=&quot;&quot;)),
   stringsAsFactors = FALSE
 )
 
@@ -354,103 +394,49 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">12:45 AM</td>
-<td align="left">Malaga</td>
-<td align="left">(AGP)</td>
-<td align="left">Volotea</td>
-<td align="left">A319</td>
-<td align="left">(EC-MTE)</td>
-<td align="left">Landed 1:06 AM</td>
-</tr>
-<tr class="even">
-<td align="left">12:50 AM</td>
-<td align="left">Naples</td>
-<td align="left">(NAP)</td>
-<td align="left">Volotea</td>
-<td align="left">A319</td>
-<td align="left">(EC-MTF)</td>
-<td align="left">Landed 12:41 AM</td>
-</tr>
-<tr class="odd">
-<td align="left">1:00 AM</td>
-<td align="left">Ibiza</td>
-<td align="left">(IBZ)</td>
-<td align="left">Volotea</td>
-<td align="left">A319</td>
-<td align="left">(EC-MTC)</td>
-<td align="left">Landed 1:30 AM</td>
-</tr>
-<tr class="even">
-<td align="left">2:45 AM</td>
-<td align="left">Paris</td>
-<td align="left">(CDG)</td>
-<td align="left">ASL Airlines France</td>
-<td align="left">B733</td>
-<td align="left">(F-GZTB)</td>
-<td align="left">Landed 2:43 AM</td>
-</tr>
-<tr class="odd">
 <td align="left">7:05 AM</td>
 <td align="left">Marseille</td>
 <td align="left">(MRS)</td>
 <td align="left">Air France</td>
 <td align="left">A319</td>
-<td align="left">(F-GRXB)</td>
-<td align="left">Landed 7:03 AM</td>
+<td align="left">(F-GPMF)</td>
+<td align="left">Landed 6:59 AM</td>
 </tr>
 <tr class="even">
-<td align="left">7:25 AM</td>
-<td align="left">Paris</td>
-<td align="left">(ORY)</td>
-<td align="left">Air France</td>
-<td align="left">A318</td>
-<td align="left">(F-GUGN)</td>
-<td align="left">Landed 7:10 AM</td>
-</tr>
-<tr class="odd">
 <td align="left">7:30 AM</td>
 <td align="left">Rennes</td>
 <td align="left">(RNS)</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
 <td align="left">(F-HBCA)</td>
-<td align="left">Landed 7:25 AM</td>
-</tr>
-<tr class="even">
-<td align="left">7:53 AM</td>
-<td align="left">Montreal</td>
-<td align="left">(YUL)</td>
-<td align="left">Air Transat</td>
-<td align="left">A310</td>
-<td align="left">(C-GTSY)</td>
-<td align="left">Landed 7:01 AM</td>
+<td align="left">Landed 7:31 AM</td>
 </tr>
 <tr class="odd">
+<td align="left">7:41 AM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A318</td>
+<td align="left">(F-GUGP)</td>
+<td align="left">Canceled</td>
+</tr>
+<tr class="even">
 <td align="left">8:05 AM</td>
 <td align="left">Lyon</td>
 <td align="left">(LYS)</td>
 <td align="left">HOP!</td>
-<td align="left">CRJX</td>
-<td align="left">(F-HMLK)</td>
-<td align="left">Diverted to NTE</td>
+<td align="left">CRJ7</td>
+<td align="left">(F-GRZM)</td>
+<td align="left">Unknown</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">8:30 AM</td>
 <td align="left">Paris</td>
 <td align="left">(ORY)</td>
 <td align="left">Air France</td>
-<td align="left">A319</td>
-<td align="left">(F-GPMD)</td>
-<td align="left">Landed 8:11 AM</td>
-</tr>
-<tr class="odd">
-<td align="left">8:30 AM</td>
-<td align="left">Strasbourg</td>
-<td align="left">(SXB)</td>
-<td align="left">Volotea</td>
-<td align="left">B712</td>
-<td align="left">(EI-EXB)</td>
-<td align="left">Landed 8:14 AM</td>
+<td align="left">A321</td>
+<td align="left">(F-GMZC)</td>
+<td align="left">Landed 8:16 AM</td>
 </tr>
 <tr class="even">
 <td align="left">8:40 AM</td>
@@ -458,17 +444,17 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(NTE)</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
-<td align="left">(F-HBCE)</td>
-<td align="left">Landed 9:43 AM</td>
+<td align="left">(F-HBCC)</td>
+<td align="left">Unknown</td>
 </tr>
 <tr class="odd">
-<td align="left">9:00 AM</td>
+<td align="left">8:45 AM</td>
 <td align="left">Madrid</td>
 <td align="left">(MAD)</td>
-<td align="left">SAS</td>
-<td align="left">CRJ9</td>
-<td align="left">(EC-JZV)</td>
-<td align="left">Landed 8:53 AM</td>
+<td align="left">Iberia Express</td>
+<td align="left">A320</td>
+<td align="left">(EC-LKH)</td>
+<td align="left">Landed 8:39 AM</td>
 </tr>
 <tr class="even">
 <td align="left">9:05 AM</td>
@@ -476,7 +462,7 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(ZRH)</td>
 <td align="left">Helvetic Airways</td>
 <td align="left">E190</td>
-<td align="left">(HB-JVQ)</td>
+<td align="left">(HB-JVM)</td>
 <td align="left">Landed 8:53 AM</td>
 </tr>
 <tr class="odd">
@@ -485,26 +471,26 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(BCN)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(OE-IJQ)</td>
-<td align="left">Landed 10:01 AM</td>
+<td align="left">(OE-IVO)</td>
+<td align="left">Landed 8:55 AM</td>
 </tr>
 <tr class="even">
 <td align="left">9:15 AM</td>
 <td align="left">London</td>
 <td align="left">(LGW)</td>
-<td align="left">PrivatAir</td>
-<td align="left">B737</td>
-<td align="left">(D-AWBC)</td>
-<td align="left">Landed 9:30 AM</td>
+<td align="left">British Airways</td>
+<td align="left">A319</td>
+<td align="left">(G-DBCH)</td>
+<td align="left">Landed 9:08 AM</td>
 </tr>
 <tr class="odd">
 <td align="left">9:30 AM</td>
 <td align="left">Paris</td>
 <td align="left">(CDG)</td>
 <td align="left">Air France</td>
-<td align="left">A319</td>
-<td align="left">(F-GRXD)</td>
-<td align="left">Landed 9:48 AM</td>
+<td align="left">A320</td>
+<td align="left">(F-HEPF)</td>
+<td align="left">Landed 9:17 AM</td>
 </tr>
 <tr class="even">
 <td align="left">9:35 AM</td>
@@ -513,7 +499,7 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">HOP!</td>
 <td align="left">E170</td>
 <td align="left">(F-HBXM)</td>
-<td align="left">Landed 9:23 AM</td>
+<td align="left">Landed 9:24 AM</td>
 </tr>
 <tr class="odd">
 <td align="left">9:35 AM</td>
@@ -521,98 +507,134 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(LYS)</td>
 <td align="left">Air France</td>
 <td align="left">A319</td>
-<td align="left">(F-GRHX)</td>
-<td align="left">Landed 9:19 AM</td>
+<td align="left">(F-GRXB)</td>
+<td align="left">Landed 9:21 AM</td>
 </tr>
 <tr class="even">
+<td align="left">9:45 AM</td>
+<td align="left">Agadir</td>
+<td align="left">(AGA)</td>
+<td align="left">TUI</td>
+<td align="left">B738</td>
+<td align="left">(OO-JAH)</td>
+<td align="left">Landed 9:29 AM</td>
+</tr>
+<tr class="odd">
 <td align="left">9:55 AM</td>
 <td align="left">Paris</td>
 <td align="left">(ORY)</td>
 <td align="left">Air France</td>
 <td align="left">A320</td>
-<td align="left">(F-HBNB)</td>
-<td align="left">Landed 9:45 AM</td>
+<td align="left">(F-HBND)</td>
+<td align="left">Landed 9:38 AM</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">9:55 AM</td>
 <td align="left">Lyon</td>
 <td align="left">(LYS)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(G-EZGX)</td>
+<td align="left">(G-EZWR)</td>
 <td align="left">Landed 9:42 AM</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">10:05 AM</td>
 <td align="left">Brest</td>
 <td align="left">(BES)</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
-<td align="left">(F-HBCC)</td>
-<td align="left">Landed 9:52 AM</td>
+<td align="left">(F-HETS)</td>
+<td align="left">Landed 9:53 AM</td>
+</tr>
+<tr class="even">
+<td align="left">10:05 AM</td>
+<td align="left">Pisa</td>
+<td align="left">(PSA)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MUT)</td>
+<td align="left">Landed 9:46 AM</td>
 </tr>
 <tr class="odd">
+<td align="left">10:10 AM</td>
+<td align="left">Figari</td>
+<td align="left">(FSC)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTF)</td>
+<td align="left">Landed 9:56 AM</td>
+</tr>
+<tr class="even">
 <td align="left">10:45 AM</td>
 <td align="left">Montpellier</td>
 <td align="left">(MPL)</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
 <td align="left">(F-HBCA)</td>
-<td align="left">Landed 10:32 AM</td>
+<td align="left">Landed 10:26 AM</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">10:50 AM</td>
 <td align="left">Paris</td>
 <td align="left">(CDG)</td>
 <td align="left">Air France</td>
 <td align="left">A320</td>
-<td align="left">(F-GKXI)</td>
-<td align="left">Landed 10:56 AM</td>
+<td align="left">(F-HEPK)</td>
+<td align="left">Landed 10:47 AM</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">10:50 AM</td>
 <td align="left">Athens</td>
 <td align="left">(ATH)</td>
 <td align="left">Aegean Airlines</td>
 <td align="left">A320</td>
-<td align="left">(SX-DNA)</td>
-<td align="left">Landed 10:45 AM</td>
-</tr>
-<tr class="even">
-<td align="left">10:55 AM</td>
-<td align="left">London</td>
-<td align="left">(LGW)</td>
-<td align="left">easyJet</td>
-<td align="left">A320</td>
-<td align="left">(G-EZWR)</td>
-<td align="left">Landed 11:01 AM</td>
+<td align="left">(SX-DVW)</td>
+<td align="left">Landed 10:33 AM</td>
 </tr>
 <tr class="odd">
 <td align="left">11:05 AM</td>
 <td align="left">Amsterdam</td>
 <td align="left">(AMS)</td>
 <td align="left">KLM</td>
-<td align="left">B737</td>
-<td align="left">(PH-BGK)</td>
-<td align="left">Landed 10:58 AM</td>
+<td align="left">B738</td>
+<td align="left">(PH-BXG)</td>
+<td align="left">Landed 10:54 AM</td>
 </tr>
 <tr class="even">
+<td align="left">11:05 AM</td>
+<td align="left">London</td>
+<td align="left">(LGW)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(OE-IVN)</td>
+<td align="left">Landed 11:02 AM</td>
+</tr>
+<tr class="odd">
 <td align="left">11:20 AM</td>
 <td align="left">Paris</td>
 <td align="left">(ORY)</td>
-<td align="left">Air France</td>
-<td align="left">319</td>
-<td align="left">()</td>
-<td align="left">Canceled</td>
+<td align="left">Transavia France</td>
+<td align="left">A320</td>
+<td align="left">(F-HBNA)</td>
+<td align="left">Landed 11:10 AM</td>
 </tr>
-<tr class="odd">
-<td align="left">11:45 AM</td>
-<td align="left">Barcelona</td>
-<td align="left">(BCN)</td>
+<tr class="even">
+<td align="left">11:20 AM</td>
+<td align="left">Palma de Mallorca</td>
+<td align="left">(PMI)</td>
 <td align="left">Vueling</td>
 <td align="left">A320</td>
-<td align="left">(EC-MER)</td>
-<td align="left">Landed 11:40 AM</td>
+<td align="left">(EC-MCU)</td>
+<td align="left">Landed 11:13 AM</td>
+</tr>
+<tr class="odd">
+<td align="left">11:40 AM</td>
+<td align="left">Venice</td>
+<td align="left">(VCE)</td>
+<td align="left">Volotea</td>
+<td align="left">B712</td>
+<td align="left">(EI-EXA)</td>
+<td align="left">Unknown</td>
 </tr>
 <tr class="even">
 <td align="left">12:05 PM</td>
@@ -620,34 +642,52 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(NTE)</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
-<td align="left">(F-HETS)</td>
-<td align="left">Landed 11:53 AM</td>
+<td align="left">(F-HBCE)</td>
+<td align="left">Landed 12:10 PM</td>
 </tr>
 <tr class="odd">
+<td align="left">12:20 PM</td>
+<td align="left">Brussels</td>
+<td align="left">(CRL)</td>
+<td align="left">Ryanair</td>
+<td align="left">B738</td>
+<td align="left">(EI-FRM)</td>
+<td align="left">Landed 12:16 PM</td>
+</tr>
+<tr class="even">
+<td align="left">12:30 PM</td>
+<td align="left">Liverpool</td>
+<td align="left">(LPL)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZWG)</td>
+<td align="left">Landed 12:21 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">1:10 PM</td>
+<td align="left">Istanbul</td>
+<td align="left">(IST)</td>
+<td align="left">Turkish Airlines</td>
+<td align="left">B738</td>
+<td align="left">(TC-JHV)</td>
+<td align="left">Landed 1:12 PM</td>
+</tr>
+<tr class="even">
 <td align="left">1:30 PM</td>
 <td align="left">Paris</td>
 <td align="left">(CDG)</td>
 <td align="left">Air France</td>
-<td align="left">A321</td>
-<td align="left">(F-GTAD)</td>
-<td align="left">Landed 1:46 PM</td>
+<td align="left">A320</td>
+<td align="left">(F-HEPA)</td>
+<td align="left">Landed 1:30 PM</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">1:30 PM</td>
 <td align="left">Milan</td>
 <td align="left">(MXP)</td>
 <td align="left">easyJet</td>
-<td align="left">A319</td>
-<td align="left">(OE-LKD)</td>
-<td align="left">Landed 1:39 PM</td>
-</tr>
-<tr class="odd">
-<td align="left">1:35 PM</td>
-<td align="left">Nice</td>
-<td align="left">(NCE)</td>
-<td align="left">Air France</td>
-<td align="left">A319</td>
-<td align="left">(F-GRHX)</td>
+<td align="left">A320</td>
+<td align="left">(OE-IZE)</td>
 <td align="left">Landed 1:26 PM</td>
 </tr>
 <tr class="even">
@@ -656,26 +696,44 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(RAK)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(OE-IVN)</td>
+<td align="left">(G-EZGX)</td>
 <td align="left">Landed 1:09 PM</td>
 </tr>
 <tr class="odd">
+<td align="left">1:35 PM</td>
+<td align="left">Nice</td>
+<td align="left">(NCE)</td>
+<td align="left">Air France</td>
+<td align="left">A319</td>
+<td align="left">(F-GRXB)</td>
+<td align="left">Landed 1:34 PM</td>
+</tr>
+<tr class="even">
 <td align="left">1:40 PM</td>
 <td align="left">Brussels</td>
 <td align="left">(BRU)</td>
 <td align="left">Brussels Airlines</td>
 <td align="left">A319</td>
-<td align="left">(OO-SSS)</td>
-<td align="left">Landed 1:31 PM</td>
+<td align="left">(OO-SSA)</td>
+<td align="left">Landed 1:39 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">2:05 PM</td>
+<td align="left">London</td>
+<td align="left">(STN)</td>
+<td align="left">Ryanair</td>
+<td align="left">B738</td>
+<td align="left">(EI-DCP)</td>
+<td align="left">Landed 2:26 PM</td>
 </tr>
 <tr class="even">
-<td align="left">1:40 PM</td>
-<td align="left">Nice</td>
-<td align="left">(NCE)</td>
+<td align="left">2:15 PM</td>
+<td align="left">Luxembourg</td>
+<td align="left">(LUX)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(G-EZGX)</td>
-<td align="left">Landed 1:34 PM</td>
+<td align="left">(G-EZWR)</td>
+<td align="left">Landed 1:55 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">2:35 PM</td>
@@ -683,8 +741,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(LIS)</td>
 <td align="left">easyJet</td>
 <td align="left">A319</td>
-<td align="left">(G-EZDF)</td>
-<td align="left">Landed 2:34 PM</td>
+<td align="left">(OE-LQX)</td>
+<td align="left">Landed 2:38 PM</td>
 </tr>
 <tr class="even">
 <td align="left">2:35 PM</td>
@@ -692,8 +750,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(AJA)</td>
 <td align="left">Volotea</td>
 <td align="left">A319</td>
-<td align="left">(EC-MTC)</td>
-<td align="left">Landed 2:29 PM</td>
+<td align="left">(EC-MTE)</td>
+<td align="left">Landed 2:20 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">2:55 PM</td>
@@ -702,25 +760,25 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">HOP!</td>
 <td align="left">E170</td>
 <td align="left">(F-HBXM)</td>
-<td align="left">Landed 2:50 PM</td>
+<td align="left">Unknown</td>
 </tr>
 <tr class="even">
+<td align="left">3:15 PM</td>
+<td align="left">Rome</td>
+<td align="left">(CIA)</td>
+<td align="left">Ryanair</td>
+<td align="left">B738</td>
+<td align="left">(EI-DWY)</td>
+<td align="left">Landed 3:03 PM</td>
+</tr>
+<tr class="odd">
 <td align="left">3:15 PM</td>
 <td align="left">Paris</td>
 <td align="left">(ORY)</td>
 <td align="left">Air France</td>
 <td align="left">A321</td>
-<td align="left">(F-GTAX)</td>
-<td align="left">Landed 3:09 PM</td>
-</tr>
-<tr class="odd">
-<td align="left">3:15 PM</td>
-<td align="left">Figari</td>
-<td align="left">(FSC)</td>
-<td align="left">Volotea</td>
-<td align="left">A319</td>
-<td align="left">(EC-MTF)</td>
-<td align="left">Landed 3:02 PM</td>
+<td align="left">(F-GTAO)</td>
+<td align="left">Landed 3:12 PM</td>
 </tr>
 <tr class="even">
 <td align="left">3:25 PM</td>
@@ -728,26 +786,44 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(OPO)</td>
 <td align="left">Ryanair</td>
 <td align="left">B738</td>
-<td align="left">(EI-EVR)</td>
-<td align="left">Landed 3:14 PM</td>
+<td align="left">(EI-DPJ)</td>
+<td align="left">Landed 3:35 PM</td>
 </tr>
 <tr class="odd">
-<td align="left">3:30 PM</td>
-<td align="left">Rome</td>
-<td align="left">(CIA)</td>
-<td align="left">Ryanair</td>
-<td align="left">B738</td>
-<td align="left">(EI-EBR)</td>
-<td align="left">Landed 3:29 PM</td>
+<td align="left">3:45 PM</td>
+<td align="left">Bastia</td>
+<td align="left">(BIA)</td>
+<td align="left">Volotea</td>
+<td align="left">B712</td>
+<td align="left">(EI-EXA)</td>
+<td align="left">Landed 4:05 PM</td>
 </tr>
 <tr class="even">
+<td align="left">3:55 PM</td>
+<td align="left">Ajaccio</td>
+<td align="left">(AJA)</td>
+<td align="left">Air Corsica</td>
+<td align="left">AT75</td>
+<td align="left">(F-GRPX)</td>
+<td align="left">Landed 3:31 PM</td>
+</tr>
+<tr class="odd">
 <td align="left">3:55 PM</td>
 <td align="left">Lisbon</td>
 <td align="left">(LIS)</td>
 <td align="left">TAP Express</td>
-<td align="left">E195</td>
-<td align="left">(CS-TTX)</td>
-<td align="left">Landed 4:11 PM</td>
+<td align="left">E190</td>
+<td align="left">(CS-TPP)</td>
+<td align="left">Unknown</td>
+</tr>
+<tr class="even">
+<td align="left">4:00 PM</td>
+<td align="left">Oran</td>
+<td align="left">(ORN)</td>
+<td align="left">Air Algerie</td>
+<td align="left">B738</td>
+<td align="left">(7T-VKF)</td>
+<td align="left">Landed 4:24 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">4:05 PM</td>
@@ -755,17 +831,17 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(DUB)</td>
 <td align="left">Aer Lingus</td>
 <td align="left">A320</td>
-<td align="left">(EI-DEC)</td>
-<td align="left">Landed 3:46 PM</td>
+<td align="left">(EI-DVL)</td>
+<td align="left">Landed 4:04 PM</td>
 </tr>
 <tr class="even">
 <td align="left">4:15 PM</td>
 <td align="left">Paris</td>
 <td align="left">(ORY)</td>
 <td align="left">Air France</td>
-<td align="left">A320</td>
-<td align="left">(F-HBNF)</td>
-<td align="left">Landed 4:15 PM</td>
+<td align="left">A321</td>
+<td align="left">(F-GMZA)</td>
+<td align="left">Landed 3:56 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">4:20 PM</td>
@@ -773,8 +849,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(MRS)</td>
 <td align="left">Air France</td>
 <td align="left">A320</td>
-<td align="left">(F-GKXK)</td>
-<td align="left">Landed 4:09 PM</td>
+<td align="left">(F-HBNI)</td>
+<td align="left">Landed 4:22 PM</td>
 </tr>
 <tr class="even">
 <td align="left">4:20 PM</td>
@@ -782,8 +858,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(AMS)</td>
 <td align="left">KLM</td>
 <td align="left">E190</td>
-<td align="left">(PH-EZP)</td>
-<td align="left">Landed 4:34 PM</td>
+<td align="left">(PH-EZZ)</td>
+<td align="left">Landed 4:11 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">4:25 PM</td>
@@ -792,34 +868,16 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
 <td align="left">(F-HBCA)</td>
-<td align="left">Landed 4:38 PM</td>
+<td align="left">Landed 4:15 PM</td>
 </tr>
 <tr class="even">
 <td align="left">4:25 PM</td>
 <td align="left">Bristol</td>
 <td align="left">(BRS)</td>
 <td align="left">easyJet</td>
-<td align="left">A20N</td>
-<td align="left">(G-UZHI)</td>
-<td align="left">Landed 4:08 PM</td>
-</tr>
-<tr class="odd">
-<td align="left">4:35 PM</td>
-<td align="left">Seville</td>
-<td align="left">(SVQ)</td>
-<td align="left">Ryanair</td>
-<td align="left">B738</td>
-<td align="left">(EI-DHV)</td>
-<td align="left">Unknown</td>
-</tr>
-<tr class="even">
-<td align="left">4:40 PM</td>
-<td align="left">Basel</td>
-<td align="left">(BSL)</td>
-<td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(HB-JZY)</td>
-<td align="left">Landed 4:33 PM</td>
+<td align="left">(OE-IJH)</td>
+<td align="left">Landed 4:21 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">4:45 PM</td>
@@ -827,17 +885,17 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(LTN)</td>
 <td align="left">easyJet</td>
 <td align="left">A319</td>
-<td align="left">(OE-LKQ)</td>
-<td align="left">Landed 4:38 PM</td>
+<td align="left">(OE-LQK)</td>
+<td align="left">Landed 4:47 PM</td>
 </tr>
 <tr class="even">
 <td align="left">4:55 PM</td>
 <td align="left">Lyon</td>
 <td align="left">(LYS)</td>
 <td align="left">HOP!</td>
-<td align="left">CRK</td>
-<td align="left">()</td>
-<td align="left">Canceled</td>
+<td align="left">CRJX</td>
+<td align="left">(F-HMLJ)</td>
+<td align="left">Landed 4:54 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">5:05 PM</td>
@@ -845,17 +903,35 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(EDI)</td>
 <td align="left">Ryanair</td>
 <td align="left">B738</td>
-<td align="left">(EI-EFG)</td>
-<td align="left">Landed 5:03 PM</td>
+<td align="left">(EI-DCO)</td>
+<td align="left">Landed 4:54 PM</td>
 </tr>
 <tr class="even">
+<td align="left">5:20 PM</td>
+<td align="left">Casablanca</td>
+<td align="left">(CMN)</td>
+<td align="left">TUI</td>
+<td align="left">B738</td>
+<td align="left">(OO-JBG)</td>
+<td align="left">Unknown</td>
+</tr>
+<tr class="odd">
 <td align="left">5:25 PM</td>
 <td align="left">Hamburg</td>
 <td align="left">(HAM)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(G-EZWR)</td>
-<td align="left">Landed 5:14 PM</td>
+<td align="left">(OE-IVN)</td>
+<td align="left">Landed 5:09 PM</td>
+</tr>
+<tr class="even">
+<td align="left">5:30 PM</td>
+<td align="left">Riga</td>
+<td align="left">(RIX)</td>
+<td align="left">Air Baltic</td>
+<td align="left">BCS3</td>
+<td align="left">(YL-CSA)</td>
+<td align="left">Landed 5:22 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">5:30 PM</td>
@@ -863,8 +939,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(CDG)</td>
 <td align="left">Air France</td>
 <td align="left">A321</td>
-<td align="left">(F-GTAU)</td>
-<td align="left">Landed 5:35 PM</td>
+<td align="left">(F-GTAT)</td>
+<td align="left">Landed 5:26 PM</td>
 </tr>
 <tr class="even">
 <td align="left">5:30 PM</td>
@@ -872,35 +948,35 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(LYS)</td>
 <td align="left">Air France</td>
 <td align="left">A319</td>
-<td align="left">(F-GRHQ)</td>
-<td align="left">Landed 5:16 PM</td>
+<td align="left">(F-GRXB)</td>
+<td align="left">Landed 5:12 PM</td>
 </tr>
 <tr class="odd">
-<td align="left">5:30 PM</td>
-<td align="left">Tunis</td>
-<td align="left">(TUN)</td>
-<td align="left">Tunisair</td>
-<td align="left">A320</td>
-<td align="left">(TS-IMF)</td>
-<td align="left">Landed 8:37 PM</td>
-</tr>
-<tr class="even">
-<td align="left">5:40 PM</td>
+<td align="left">5:35 PM</td>
 <td align="left">Milan</td>
 <td align="left">(BGY)</td>
 <td align="left">Ryanair</td>
 <td align="left">B738</td>
-<td align="left">(EI-DLJ)</td>
-<td align="left">Landed 5:27 PM</td>
+<td align="left">(EI-EVF)</td>
+<td align="left">Landed 5:21 PM</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">5:40 PM</td>
 <td align="left">Madrid</td>
 <td align="left">(MAD)</td>
 <td align="left">Iberia Regional</td>
 <td align="left">CRJX</td>
 <td align="left">(EC-MUG)</td>
-<td align="left">Landed 6:14 PM</td>
+<td align="left">Landed 6:10 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">5:45 PM</td>
+<td align="left">Casablanca</td>
+<td align="left">(CMN)</td>
+<td align="left">Royal Air Maroc</td>
+<td align="left">B738</td>
+<td align="left">(CN-ROS)</td>
+<td align="left">Landed 6:03 PM</td>
 </tr>
 <tr class="even">
 <td align="left">5:55 PM</td>
@@ -909,7 +985,7 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">Air France</td>
 <td align="left">A321</td>
 <td align="left">(F-GMZC)</td>
-<td align="left">Landed 5:46 PM</td>
+<td align="left">Landed 5:42 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">5:55 PM</td>
@@ -917,35 +993,17 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(FRA)</td>
 <td align="left">Lufthansa</td>
 <td align="left">A319</td>
-<td align="left">(D-AILM)</td>
-<td align="left">Landed 5:41 PM</td>
-</tr>
-<tr class="even">
-<td align="left">6:00 PM</td>
-<td align="left">Algiers</td>
-<td align="left">(ALG)</td>
-<td align="left">Air Algerie</td>
-<td align="left">B738</td>
-<td align="left">(7T-VKL)</td>
-<td align="left">Landed 6:40 PM</td>
-</tr>
-<tr class="odd">
-<td align="left">6:10 PM</td>
-<td align="left">Warsaw</td>
-<td align="left">(WAW)</td>
-<td align="left">Wizz Air</td>
-<td align="left">A320</td>
-<td align="left">(HA-LPM)</td>
-<td align="left">Landed 6:08 PM</td>
+<td align="left">(D-AILP)</td>
+<td align="left">Landed 5:44 PM</td>
 </tr>
 <tr class="even">
 <td align="left">6:15 PM</td>
 <td align="left">Bucharest</td>
 <td align="left">(OTP)</td>
-<td align="left">Blue Air (Carol I Livery)</td>
-<td align="left">B738</td>
-<td align="left">(YR-BMP)</td>
-<td align="left">Landed 8:27 PM</td>
+<td align="left">Blue Air</td>
+<td align="left">B735</td>
+<td align="left">(YR-AMC)</td>
+<td align="left">Landed 5:59 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">6:20 PM</td>
@@ -953,8 +1011,26 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(BES)</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
-<td align="left">(F-HBCC)</td>
-<td align="left">Landed 6:16 PM</td>
+<td align="left">(F-HETS)</td>
+<td align="left">Landed 6:13 PM</td>
+</tr>
+<tr class="even">
+<td align="left">6:25 PM</td>
+<td align="left">Barcelona</td>
+<td align="left">(BCN)</td>
+<td align="left">Vueling</td>
+<td align="left">A320</td>
+<td align="left">(EC-LAA)</td>
+<td align="left">Landed 6:35 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">6:30 PM</td>
+<td align="left">Strasbourg</td>
+<td align="left">(SXB)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MUT)</td>
+<td align="left">Landed 6:31 PM</td>
 </tr>
 <tr class="even">
 <td align="left">6:35 PM</td>
@@ -962,8 +1038,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(GVA)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(G-EZUO)</td>
-<td align="left">Landed 6:24 PM</td>
+<td align="left">(G-EZUS)</td>
+<td align="left">Landed 6:33 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">6:35 PM</td>
@@ -971,19 +1047,28 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(LIL)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(G-EZGX)</td>
-<td align="left">Landed 6:29 PM</td>
+<td align="left">(G-EZWR)</td>
+<td align="left">Landed 6:19 PM</td>
 </tr>
 <tr class="even">
+<td align="left">6:40 PM</td>
+<td align="left">Heraklion</td>
+<td align="left">(HER)</td>
+<td align="left">Aegean Airlines</td>
+<td align="left">A320</td>
+<td align="left">(SX-DVS)</td>
+<td align="left">Landed 6:21 PM</td>
+</tr>
+<tr class="odd">
 <td align="left">6:40 PM</td>
 <td align="left">Venice</td>
 <td align="left">(VCE)</td>
 <td align="left">easyJet</td>
 <td align="left">A319</td>
-<td align="left">(G-EZDC)</td>
-<td align="left">Landed 6:47 PM</td>
+<td align="left">(OE-LKG)</td>
+<td align="left">Landed 6:44 PM</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">6:45 PM</td>
 <td align="left">Lille</td>
 <td align="left">(LIL)</td>
@@ -992,41 +1077,14 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(F-HBXM)</td>
 <td align="left">Landed 6:40 PM</td>
 </tr>
-<tr class="even">
-<td align="left">6:50 PM</td>
-<td align="left">Palma de Mallorca</td>
-<td align="left">(PMI)</td>
-<td align="left">Volotea</td>
-<td align="left">A319</td>
-<td align="left">(EC-MTE)</td>
-<td align="left">Landed 6:49 PM</td>
-</tr>
 <tr class="odd">
 <td align="left">7:00 PM</td>
 <td align="left">Zurich</td>
 <td align="left">(ZRH)</td>
-<td align="left">Swiss</td>
-<td align="left">BCS1</td>
-<td align="left">(HB-JBA)</td>
-<td align="left">Landed 7:10 PM</td>
-</tr>
-<tr class="even">
-<td align="left">7:05 PM</td>
-<td align="left">Caen</td>
-<td align="left">(CFR)</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">B190</td>
-<td align="left">(F-HBCE)</td>
-<td align="left">Landed 7:12 PM</td>
-</tr>
-<tr class="odd">
-<td align="left">7:10 PM</td>
-<td align="left">Paris</td>
-<td align="left">(ORY)</td>
-<td align="left">Air France</td>
-<td align="left">A321</td>
-<td align="left">(F-GTAX)</td>
-<td align="left">Landed 6:57 PM</td>
+<td align="left">Austrian Airlines (Star Alliance Livery)</td>
+<td align="left">DH8D</td>
+<td align="left">(OE-LGR)</td>
+<td align="left">Canceled</td>
 </tr>
 <tr class="even">
 <td align="left">7:10 PM</td>
@@ -1034,17 +1092,35 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(LYS)</td>
 <td align="left">easyJet</td>
 <td align="left">A319</td>
-<td align="left">(OE-LKG)</td>
-<td align="left">Landed 7:34 PM</td>
+<td align="left">(G-EZDH)</td>
+<td align="left">Landed 7:21 PM</td>
 </tr>
 <tr class="odd">
-<td align="left">7:30 PM</td>
-<td align="left">Strasbourg</td>
-<td align="left">(SXB)</td>
+<td align="left">7:10 PM</td>
+<td align="left">Paris</td>
+<td align="left">(ORY)</td>
+<td align="left">Air France</td>
+<td align="left">A321</td>
+<td align="left">(F-GTAO)</td>
+<td align="left">Landed 7:02 PM</td>
+</tr>
+<tr class="even">
+<td align="left">7:10 PM</td>
+<td align="left">Brest</td>
+<td align="left">(BES)</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">B190</td>
+<td align="left">(F-HBCC)</td>
+<td align="left">Landed 7:05 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">7:35 PM</td>
+<td align="left">Naples</td>
+<td align="left">(NAP)</td>
 <td align="left">Volotea</td>
 <td align="left">A319</td>
-<td align="left">(EC-MTF)</td>
-<td align="left">Landed 7:24 PM</td>
+<td align="left">(EC-MTD)</td>
+<td align="left">Landed 7:29 PM</td>
 </tr>
 <tr class="even">
 <td align="left">7:40 PM</td>
@@ -1056,49 +1132,85 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">Unknown</td>
 </tr>
 <tr class="odd">
+<td align="left">7:50 PM</td>
+<td align="left">Cagliari</td>
+<td align="left">(CAG)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTE)</td>
+<td align="left">Landed 7:27 PM</td>
+</tr>
+<tr class="even">
 <td align="left">8:00 PM</td>
 <td align="left">Marseille</td>
 <td align="left">(MRS)</td>
 <td align="left">Air France</td>
 <td align="left">A320</td>
-<td align="left">(F-GKXK)</td>
-<td align="left">Landed 7:53 PM</td>
+<td align="left">(F-HBNI)</td>
+<td align="left">Landed 7:45 PM</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">8:10 PM</td>
 <td align="left">Nice</td>
 <td align="left">(NCE)</td>
 <td align="left">easyJet</td>
-<td align="left">A20N</td>
-<td align="left">(G-UZHJ)</td>
-<td align="left">Landed 7:47 PM</td>
+<td align="left">A320</td>
+<td align="left">(OE-IVW)</td>
+<td align="left">Landed 7:59 PM</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">8:15 PM</td>
 <td align="left">Paris</td>
 <td align="left">(CDG)</td>
 <td align="left">Air France</td>
+<td align="left">A320</td>
+<td align="left">(F-HEPD)</td>
+<td align="left">Landed 8:15 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">8:15 PM</td>
+<td align="left">Amsterdam</td>
+<td align="left">(AMS)</td>
+<td align="left">easyJet</td>
 <td align="left">A319</td>
-<td align="left">(F-GRXE)</td>
-<td align="left">Landed 7:58 PM</td>
+<td align="left">(G-EZGC)</td>
+<td align="left">Landed 8:36 PM</td>
 </tr>
 <tr class="even">
+<td align="left">8:30 PM</td>
+<td align="left">Oslo</td>
+<td align="left">(OSL)</td>
+<td align="left">Norwegian</td>
+<td align="left">B738</td>
+<td align="left">(LN-NGX)</td>
+<td align="left">Landed 8:45 PM</td>
+</tr>
+<tr class="odd">
 <td align="left">8:30 PM</td>
 <td align="left">Paris</td>
 <td align="left">(ORY)</td>
 <td align="left">Air France</td>
 <td align="left">A321</td>
-<td align="left">(F-GTAQ)</td>
-<td align="left">Landed 8:17 PM</td>
+<td align="left">(F-GTAX)</td>
+<td align="left">Landed 8:26 PM</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">8:35 PM</td>
 <td align="left">Lyon</td>
 <td align="left">(LYS)</td>
 <td align="left">HOP!</td>
-<td align="left">CRJX</td>
-<td align="left">(F-HMLG)</td>
-<td align="left">Landed 8:25 PM</td>
+<td align="left">CRJ7</td>
+<td align="left">(F-GRZI)</td>
+<td align="left">Landed 8:26 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">8:40 PM</td>
+<td align="left">Catania</td>
+<td align="left">(CTA)</td>
+<td align="left">easyJet</td>
+<td align="left">A320</td>
+<td align="left">(G-EZGX)</td>
+<td align="left">Landed 8:13 PM</td>
 </tr>
 <tr class="even">
 <td align="left">8:45 PM</td>
@@ -1106,35 +1218,35 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(LYS)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(G-EZWR)</td>
-<td align="left">Landed 8:31 PM</td>
+<td align="left">(OE-IVN)</td>
+<td align="left">Landed 8:18 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">8:50 PM</td>
-<td align="left">Paris</td>
-<td align="left">(CDG)</td>
-<td align="left">ASL Airlines France</td>
-<td align="left">733</td>
-<td align="left">()</td>
-<td align="left">Unknown</td>
-</tr>
-<tr class="even">
-<td align="left">9:00 PM</td>
-<td align="left">Liverpool</td>
-<td align="left">(LPL)</td>
+<td align="left">Basel</td>
+<td align="left">(BSL)</td>
 <td align="left">easyJet</td>
 <td align="left">A319</td>
-<td align="left">(G-EZAW)</td>
-<td align="left">Landed 8:47 PM</td>
+<td align="left">(HB-JYG)</td>
+<td align="left">Landed 8:30 PM</td>
 </tr>
-<tr class="odd">
-<td align="left">9:05 PM</td>
-<td align="left">Catania</td>
-<td align="left">(CTA)</td>
+<tr class="even">
+<td align="left">8:55 PM</td>
+<td align="left">Geneva</td>
+<td align="left">(GVA)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(OE-IVN)</td>
-<td align="left">Landed 8:41 PM</td>
+<td align="left">(HB-JYE)</td>
+<td align="left">Landed 8:53 PM</td>
+</tr>
+<tr class="odd">
+<td align="left">9:25 PM</td>
+<td align="left">London</td>
+<td align="left">(LGW)</td>
+<td align="left">easyJet (Love Napoli Livery)</td>
+<td align="left">A319</td>
+<td align="left">(G-EZEZ)</td>
+<td align="left">Landed 9:27 PM</td>
 </tr>
 <tr class="even">
 <td align="left">9:30 PM</td>
@@ -1142,8 +1254,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(NTE)</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
-<td align="left">(F-HETS)</td>
-<td align="left">Landed 9:17 PM</td>
+<td align="left">(F-HBCE)</td>
+<td align="left">Landed 9:19 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">9:35 PM</td>
@@ -1152,16 +1264,16 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">Air France</td>
 <td align="left">A319</td>
 <td align="left">(F-GRHQ)</td>
-<td align="left">Landed 9:29 PM</td>
+<td align="left">Landed 9:23 PM</td>
 </tr>
 <tr class="even">
-<td align="left">9:35 PM</td>
+<td align="left">9:45 PM</td>
 <td align="left">London</td>
 <td align="left">(LGW)</td>
-<td align="left">easyJet</td>
-<td align="left">A319</td>
-<td align="left">(OE-LKI)</td>
-<td align="left">Landed 9:22 PM</td>
+<td align="left">British Airways</td>
+<td align="left">A320</td>
+<td align="left">(G-GATJ)</td>
+<td align="left">Landed 10:42 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">9:55 PM</td>
@@ -1169,8 +1281,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(ORY)</td>
 <td align="left">Air France</td>
 <td align="left">A320</td>
-<td align="left">(F-HBNB)</td>
-<td align="left">Estimated 9:45 PM</td>
+<td align="left">(F-HBNF)</td>
+<td align="left">Landed 9:36 PM</td>
 </tr>
 <tr class="even">
 <td align="left">9:55 PM</td>
@@ -1178,35 +1290,17 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(BES)</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">B190</td>
-<td align="left">(F-HBCC)</td>
-<td align="left">Landed 9:46 PM</td>
+<td align="left">(F-HETS)</td>
+<td align="left">Landed 9:55 PM</td>
 </tr>
 <tr class="odd">
-<td align="left">10:05 PM</td>
-<td align="left">Casablanca</td>
-<td align="left">(CMN)</td>
-<td align="left">TUI</td>
-<td align="left">B738</td>
-<td align="left">(OO-JBG)</td>
-<td align="left">Landed 10:18 PM</td>
-</tr>
-<tr class="even">
 <td align="left">10:05 PM</td>
 <td align="left">Marseille</td>
 <td align="left">(MRS)</td>
 <td align="left">easyJet</td>
 <td align="left">A320</td>
-<td align="left">(G-EZGX)</td>
-<td align="left">Landed 9:50 PM</td>
-</tr>
-<tr class="odd">
-<td align="left">10:20 PM</td>
-<td align="left">Paris</td>
-<td align="left">(CDG)</td>
-<td align="left">Air France</td>
-<td align="left">A321</td>
-<td align="left">(F-GTAU)</td>
-<td align="left">Estimated 10:27 PM</td>
+<td align="left">(G-EZWR)</td>
+<td align="left">Landed 9:52 PM</td>
 </tr>
 <tr class="even">
 <td align="left">10:20 PM</td>
@@ -1214,8 +1308,8 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(AMS)</td>
 <td align="left">KLM</td>
 <td align="left">B737</td>
-<td align="left">(PH-BGT)</td>
-<td align="left">Landed 10:13 PM</td>
+<td align="left">(PH-BGI)</td>
+<td align="left">Landed 10:24 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">10:20 PM</td>
@@ -1223,17 +1317,17 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">(CDG)</td>
 <td align="left">Air France</td>
 <td align="left">A321</td>
-<td align="left">(F-GTAU)</td>
-<td align="left">Estimated 10:27 PM</td>
+<td align="left">(F-GTAT)</td>
+<td align="left">Landed 10:25 PM</td>
 </tr>
 <tr class="even">
-<td align="left">10:20 PM</td>
-<td align="left">Amsterdam</td>
-<td align="left">(AMS)</td>
-<td align="left">KLM</td>
-<td align="left">B737</td>
-<td align="left">(PH-BGT)</td>
-<td align="left">Landed 10:13 PM</td>
+<td align="left">10:25 PM</td>
+<td align="left">Funchal</td>
+<td align="left">(FNC)</td>
+<td align="left">Volotea</td>
+<td align="left">A319</td>
+<td align="left">(EC-MTC)</td>
+<td align="left">Landed 10:01 PM</td>
 </tr>
 <tr class="odd">
 <td align="left">10:35 PM</td>
@@ -1242,7 +1336,16 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <td align="left">HOP!</td>
 <td align="left">E170</td>
 <td align="left">(F-HBXM)</td>
-<td align="left">Landed 10:17 PM</td>
+<td align="left">Landed 10:10 PM</td>
+</tr>
+<tr class="even">
+<td align="left">10:45 PM</td>
+<td align="left">Toulouse</td>
+<td align="left">(TLS)</td>
+<td align="left">TUI</td>
+<td align="left">B737</td>
+<td align="left">(OO-JAL)</td>
+<td align="left">Landed 10:32 PM</td>
 </tr>
 </tbody>
 </table>
@@ -1261,14 +1364,13 @@ kable(df,caption =&quot;results of webscraping&quot;)</code></pre>
 <p>If we decompose the query, we have : - an airport code : <strong>bod</strong> - a timestamp : <strong>1537297562</strong> - a page number : <strong>1</strong> - a limit by page : <strong>100</strong></p>
 <p>Copy paste this url in your browser to see how the result json is structured. Insteresting data is located into schedule <code>result &gt; response &gt; airport &gt; arrivals</code> : - <strong>item :</strong> number of total items - <strong>page :</strong> actual page and number of page - <strong>timestamp :</strong> date of capture - <strong>data :</strong> a list of 100 flights corresponding to actual page</p>
 <p>We download and convert json data to data.frame using the jsonlite wonderfull package :) Why wonderfull ? Because jsonlite had an option to flatten the structure of json which normally contain data.frame into data.fram into data.frame …</p>
-<pre class="r"><code>library(jsonlite)
+<pre class="r"><code>timestamp &lt;- as.numeric(as.POSIXct(now()))
 
-url &lt;- &quot;https://api.flightradar24.com/common/v1/airport.json?code=bod&amp;plugin[]=&amp;plugin-setting[schedule][mode]=&amp;plugin-setting[schedule][timestamp]=1537297562&amp;page=1&amp;limit=100&amp;token=&quot;
+url &lt;- paste(&quot;https://api.flightradar24.com/common/v1/airport.json?code=bod&amp;plugin[]=&amp;plugin-setting[schedule][mode]=&amp;plugin-setting[schedule][timestamp]=&quot;,timestamp,&quot;&amp;page=1&amp;limit=100&amp;token=&quot;,sep=&quot;&quot;)
 
 # https://cran.r-project.org/web/packages/jsonlite/vignettes/json-aaquickstart.html
 json &lt;- jsonlite::fromJSON(url,flatten = T) </code></pre>
-<pre class="r"><code>library(plyr)
-pageOfData &lt;- json$result$response$airport$pluginData$schedule$arrivals$data 
+<pre class="r"><code>pageOfData &lt;- json$result$response$airport$pluginData$schedule$arrivals$data 
 filteredData &lt;- pageOfData %&gt;% select(flight.airline.code.icao, flight.airline.name, flight.airport.origin.name, flight.airport.origin.code.icao, flight.airport.origin.position.latitude, flight.airport.origin.position.longitude) 
 
 filteredData &lt;- rename(filteredData, c(flight.airline.code.icao = &quot;ICAO&quot;, flight.airline.name= &quot;Name&quot;, flight.airport.origin.name = &quot;Origin&quot;, flight.airport.origin.code.icao=&quot;Origin ICAO&quot;, flight.airport.origin.position.latitude = &quot;Latitude&quot;,flight.airport.origin.position.longitude = &quot;Longitude&quot; ))
@@ -1288,616 +1390,24 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Nantes Atlantique Airport</td>
-<td align="left">LFRS</td>
-<td align="right">47.15694</td>
-<td align="right">-1.607770</td>
-</tr>
-<tr class="even">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Lyon Saint Exupery Airport</td>
-<td align="left">LFLL</td>
-<td align="right">45.71964</td>
-<td align="right">5.089108</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">easyJet</td>
-<td align="left">London Gatwick Airport</td>
-<td align="left">EGKK</td>
-<td align="right">51.14805</td>
-<td align="right">-0.190270</td>
-</tr>
-<tr class="even">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Orly Airport</td>
-<td align="left">LFPO</td>
-<td align="right">48.72333</td>
-<td align="right">2.379444</td>
-</tr>
-<tr class="odd">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Brest Bretagne Airport</td>
-<td align="left">LFRB</td>
-<td align="right">48.44722</td>
-<td align="right">-4.421660</td>
-</tr>
-<tr class="even">
 <td align="left">TUI</td>
 <td align="left">TUI</td>
-<td align="left">Casablanca Mohammed V International Airport</td>
-<td align="left">GMMN</td>
-<td align="right">33.36746</td>
-<td align="right">-7.589960</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">easyJet</td>
-<td align="left">Marseille Provence Airport</td>
-<td align="left">LFML</td>
-<td align="right">43.43666</td>
-<td align="right">5.215000</td>
-</tr>
-<tr class="even">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Charles de Gaulle Airport</td>
-<td align="left">LFPG</td>
-<td align="right">49.01252</td>
-<td align="right">2.555752</td>
-</tr>
-<tr class="odd">
-<td align="left">KLM</td>
-<td align="left">KLM</td>
-<td align="left">Amsterdam Schiphol Airport</td>
-<td align="left">EHAM</td>
-<td align="right">52.30861</td>
-<td align="right">4.763889</td>
-</tr>
-<tr class="even">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Lille Airport</td>
-<td align="left">LFQQ</td>
-<td align="right">50.56333</td>
-<td align="right">3.086944</td>
-</tr>
-<tr class="odd">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Bastia Poretta Airport</td>
-<td align="left">LFKB</td>
-<td align="right">42.55000</td>
-<td align="right">9.484722</td>
-</tr>
-<tr class="even">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Palermo Falcone-Borsellino Airport</td>
-<td align="left">LICJ</td>
-<td align="right">38.17595</td>
-<td align="right">13.091010</td>
-</tr>
-<tr class="odd">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Luqa Malta International Airport</td>
-<td align="left">LMML</td>
-<td align="right">35.85749</td>
-<td align="right">14.477500</td>
-</tr>
-<tr class="even">
-<td align="left">FPO</td>
-<td align="left">ASL Airlines France</td>
-<td align="left">Paris Charles de Gaulle Airport</td>
-<td align="left">LFPG</td>
-<td align="right">49.01252</td>
-<td align="right">2.555752</td>
-</tr>
-<tr class="odd">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Marseille Provence Airport</td>
-<td align="left">LFML</td>
-<td align="right">43.43666</td>
-<td align="right">5.215000</td>
-</tr>
-<tr class="even">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Orly Airport</td>
-<td align="left">LFPO</td>
-<td align="right">48.72333</td>
-<td align="right">2.379444</td>
-</tr>
-<tr class="odd">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Rennes Saint-Jacques Airport</td>
-<td align="left">LFRN</td>
-<td align="right">48.07194</td>
-<td align="right">-1.732220</td>
-</tr>
-<tr class="even">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Lyon Saint Exupery Airport</td>
-<td align="left">LFLL</td>
-<td align="right">45.71964</td>
-<td align="right">5.089108</td>
-</tr>
-<tr class="odd">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Orly Airport</td>
-<td align="left">LFPO</td>
-<td align="right">48.72333</td>
-<td align="right">2.379444</td>
-</tr>
-<tr class="even">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Strasbourg Airport</td>
-<td align="left">LFST</td>
-<td align="right">48.54361</td>
-<td align="right">7.637222</td>
-</tr>
-<tr class="odd">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Nantes Atlantique Airport</td>
-<td align="left">LFRS</td>
-<td align="right">47.15694</td>
-<td align="right">-1.607770</td>
+<td align="left">Marrakesh Menara Airport</td>
+<td align="left">GMMX</td>
+<td align="right">31.60688</td>
+<td align="right">-8.036300</td>
 </tr>
 <tr class="even">
 <td align="left">EZY</td>
 <td align="left">easyJet</td>
-<td align="left">Nice Cote d’Azur Airport</td>
-<td align="left">LFMN</td>
-<td align="right">43.66527</td>
-<td align="right">7.215000</td>
+<td align="left">Brussels Airport</td>
+<td align="left">EBBR</td>
+<td align="right">50.90138</td>
+<td align="right">4.484444</td>
 </tr>
 <tr class="odd">
 <td align="left">IBE</td>
-<td align="left">Iberia</td>
-<td align="left">Madrid Barajas Airport</td>
-<td align="left">LEMD</td>
-<td align="right">40.49355</td>
-<td align="right">-3.566760</td>
-</tr>
-<tr class="even">
-<td align="left">SWR</td>
-<td align="left">Swiss</td>
-<td align="left">Zurich Airport</td>
-<td align="left">LSZH</td>
-<td align="right">47.46472</td>
-<td align="right">8.549167</td>
-</tr>
-<tr class="odd">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Charles de Gaulle Airport</td>
-<td align="left">LFPG</td>
-<td align="right">49.01252</td>
-<td align="right">2.555752</td>
-</tr>
-<tr class="even">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Lille Airport</td>
-<td align="left">LFQQ</td>
-<td align="right">50.56333</td>
-<td align="right">3.086944</td>
-</tr>
-<tr class="odd">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Lyon Saint Exupery Airport</td>
-<td align="left">LFLL</td>
-<td align="right">45.71964</td>
-<td align="right">5.089108</td>
-</tr>
-<tr class="even">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Orly Airport</td>
-<td align="left">LFPO</td>
-<td align="right">48.72333</td>
-<td align="right">2.379444</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Lyon Saint Exupery Airport</td>
-<td align="left">LFLL</td>
-<td align="right">45.71964</td>
-<td align="right">5.089108</td>
-</tr>
-<tr class="even">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Brest Bretagne Airport</td>
-<td align="left">LFRB</td>
-<td align="right">48.44722</td>
-<td align="right">-4.421660</td>
-</tr>
-<tr class="odd">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Montpellier Mediterranee Airport</td>
-<td align="left">LFMT</td>
-<td align="right">43.58333</td>
-<td align="right">3.961389</td>
-</tr>
-<tr class="even">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Charles de Gaulle Airport</td>
-<td align="left">LFPG</td>
-<td align="right">49.01252</td>
-<td align="right">2.555752</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">London Gatwick Airport</td>
-<td align="left">EGKK</td>
-<td align="right">51.14805</td>
-<td align="right">-0.190270</td>
-</tr>
-<tr class="even">
-<td align="left">KLM</td>
-<td align="left">KLM</td>
-<td align="left">Amsterdam Schiphol Airport</td>
-<td align="left">EHAM</td>
-<td align="right">52.30861</td>
-<td align="right">4.763889</td>
-</tr>
-<tr class="odd">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Orly Airport</td>
-<td align="left">LFPO</td>
-<td align="right">48.72333</td>
-<td align="right">2.379444</td>
-</tr>
-<tr class="even">
-<td align="left">PBD</td>
-<td align="left">Pobeda</td>
-<td align="left">Moscow Vnukovo International Airport</td>
-<td align="left">UUWW</td>
-<td align="right">55.59153</td>
-<td align="right">37.261478</td>
-</tr>
-<tr class="odd">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Split Airport</td>
-<td align="left">LDSP</td>
-<td align="right">43.53894</td>
-<td align="right">16.297960</td>
-</tr>
-<tr class="even">
-<td align="left">TSC</td>
-<td align="left">Air Transat</td>
-<td align="left">Montreal Pierre Elliott Trudeau Airport</td>
-<td align="left">CYUL</td>
-<td align="right">45.47055</td>
-<td align="right">-73.740799</td>
-</tr>
-<tr class="odd">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Nantes Atlantique Airport</td>
-<td align="left">LFRS</td>
-<td align="right">47.15694</td>
-<td align="right">-1.607770</td>
-</tr>
-<tr class="even">
-<td align="left">RYR</td>
-<td align="left">Ryanair</td>
-<td align="left">Brussels South Charleroi Airport</td>
-<td align="left">EBCI</td>
-<td align="right">50.46000</td>
-<td align="right">4.452778</td>
-</tr>
-<tr class="odd">
-<td align="left">VLG</td>
-<td align="left">Vueling</td>
-<td align="left">Palma de Mallorca Airport</td>
-<td align="left">LEPA</td>
-<td align="right">39.55167</td>
-<td align="right">2.738808</td>
-</tr>
-<tr class="even">
-<td align="left">FPO</td>
-<td align="left">ASL Airlines France</td>
-<td align="left">Deauville Saint Gatien Airport</td>
-<td align="left">LFRG</td>
-<td align="right">49.36333</td>
-<td align="right">0.160000</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Bristol Airport</td>
-<td align="left">EGGD</td>
-<td align="right">51.38266</td>
-<td align="right">-2.719080</td>
-</tr>
-<tr class="even">
-<td align="left">THY</td>
-<td align="left">Turkish Airlines</td>
-<td align="left">Istanbul Ataturk International Airport</td>
-<td align="left">LTBA</td>
-<td align="right">40.97692</td>
-<td align="right">28.814600</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Belfast International Airport</td>
-<td align="left">EGAA</td>
-<td align="right">54.65750</td>
-<td align="right">-6.215830</td>
-</tr>
-<tr class="even">
-<td align="left">VLG</td>
-<td align="left">Vueling</td>
-<td align="left">Malaga Costa Del Sol Airport</td>
-<td align="left">LEMG</td>
-<td align="right">36.67490</td>
-<td align="right">-4.499100</td>
-</tr>
-<tr class="odd">
-<td align="left">BEE</td>
-<td align="left">Flybe</td>
-<td align="left">Birmingham Airport</td>
-<td align="left">EGBB</td>
-<td align="right">52.45385</td>
-<td align="right">-1.748020</td>
-</tr>
-<tr class="even">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Charles de Gaulle Airport</td>
-<td align="left">LFPG</td>
-<td align="right">49.01252</td>
-<td align="right">2.555752</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Milan Malpensa Airport</td>
-<td align="left">LIMC</td>
-<td align="right">45.63060</td>
-<td align="right">8.728111</td>
-</tr>
-<tr class="even">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Nice Cote d’Azur Airport</td>
-<td align="left">LFMN</td>
-<td align="right">43.66527</td>
-<td align="right">7.215000</td>
-</tr>
-<tr class="odd">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Santorini Thira National Airport</td>
-<td align="left">LGSR</td>
-<td align="right">36.39916</td>
-<td align="right">25.479330</td>
-</tr>
-<tr class="even">
-<td align="left">JAF</td>
-<td align="left">TUI fly Belgium</td>
-<td align="left">Corfu International Airport</td>
-<td align="left">LGKR</td>
-<td align="right">39.60194</td>
-<td align="right">19.911659</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Lisbon Humberto Delgado Airport</td>
-<td align="left">LPPT</td>
-<td align="right">38.78131</td>
-<td align="right">-9.135910</td>
-</tr>
-<tr class="even">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Palma de Mallorca Airport</td>
-<td align="left">LEPA</td>
-<td align="right">39.55167</td>
-<td align="right">2.738808</td>
-</tr>
-<tr class="odd">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Mahon Menorca Airport</td>
-<td align="left">LEMH</td>
-<td align="right">39.86259</td>
-<td align="right">4.218647</td>
-</tr>
-<tr class="even">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Dusseldorf International Airport</td>
-<td align="left">EDDL</td>
-<td align="right">51.28945</td>
-<td align="right">6.766775</td>
-</tr>
-<tr class="odd">
-<td align="left">VLG</td>
-<td align="left">Vueling</td>
-<td align="left">Barcelona El Prat Airport</td>
-<td align="left">LEBL</td>
-<td align="right">41.29707</td>
-<td align="right">2.078463</td>
-</tr>
-<tr class="even">
-<td align="left">RYR</td>
-<td align="left">Ryanair</td>
-<td align="left">London Stansted Airport</td>
-<td align="left">EGSS</td>
-<td align="right">51.88500</td>
-<td align="right">0.235000</td>
-</tr>
-<tr class="odd">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Orly Airport</td>
-<td align="left">LFPO</td>
-<td align="right">48.72333</td>
-<td align="right">2.379444</td>
-</tr>
-<tr class="even">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Dubrovnik Airport</td>
-<td align="left">LDDU</td>
-<td align="right">42.56135</td>
-<td align="right">18.268240</td>
-</tr>
-<tr class="odd">
-<td align="left">TAP</td>
-<td align="left">TAP Portugal</td>
-<td align="left">Lisbon Humberto Delgado Airport</td>
-<td align="left">LPPT</td>
-<td align="right">38.78131</td>
-<td align="right">-9.135910</td>
-</tr>
-<tr class="even">
-<td align="left">EIN</td>
-<td align="left">Aer Lingus</td>
-<td align="left">Dublin Airport</td>
-<td align="left">EIDW</td>
-<td align="right">53.42138</td>
-<td align="right">-6.270000</td>
-</tr>
-<tr class="odd">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Orly Airport</td>
-<td align="left">LFPO</td>
-<td align="right">48.72333</td>
-<td align="right">2.379444</td>
-</tr>
-<tr class="even">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Barcelona El Prat Airport</td>
-<td align="left">LEBL</td>
-<td align="right">41.29707</td>
-<td align="right">2.078463</td>
-</tr>
-<tr class="odd">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Marseille Provence Airport</td>
-<td align="left">LFML</td>
-<td align="right">43.43666</td>
-<td align="right">5.215000</td>
-</tr>
-<tr class="even">
-<td align="left">KLM</td>
-<td align="left">KLM</td>
-<td align="left">Amsterdam Schiphol Airport</td>
-<td align="left">EHAM</td>
-<td align="right">52.30861</td>
-<td align="right">4.763889</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Rhodes International Airport</td>
-<td align="left">LGRP</td>
-<td align="right">36.40541</td>
-<td align="right">28.086189</td>
-</tr>
-<tr class="even">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Rennes Saint-Jacques Airport</td>
-<td align="left">LFRN</td>
-<td align="right">48.07194</td>
-<td align="right">-1.732220</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Basel Mulhouse-Freiburg EuroAirport</td>
-<td align="left">LFSB</td>
-<td align="right">47.59890</td>
-<td align="right">7.528300</td>
-</tr>
-<tr class="even">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">London Luton Airport</td>
-<td align="left">EGGW</td>
-<td align="right">51.87472</td>
-<td align="right">-0.368330</td>
-</tr>
-<tr class="odd">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Strasbourg Airport</td>
-<td align="left">LFST</td>
-<td align="right">48.54361</td>
-<td align="right">7.637222</td>
-</tr>
-<tr class="even">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Lyon Saint Exupery Airport</td>
-<td align="left">LFLL</td>
-<td align="right">45.71964</td>
-<td align="right">5.089108</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Lille Airport</td>
-<td align="left">LFQQ</td>
-<td align="right">50.56333</td>
-<td align="right">3.086944</td>
-</tr>
-<tr class="even">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Charles de Gaulle Airport</td>
-<td align="left">LFPG</td>
-<td align="right">49.01252</td>
-<td align="right">2.555752</td>
-</tr>
-<tr class="odd">
-<td align="left">HOP</td>
-<td align="left">HOP!</td>
-<td align="left">Lyon Saint Exupery Airport</td>
-<td align="left">LFLL</td>
-<td align="right">45.71964</td>
-<td align="right">5.089108</td>
-</tr>
-<tr class="even">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Berlin Schonefeld Airport</td>
-<td align="left">EDDB</td>
-<td align="right">52.38000</td>
-<td align="right">13.522500</td>
-</tr>
-<tr class="odd">
-<td align="left">IBE</td>
-<td align="left">Iberia</td>
+<td align="left">Iberia Regional</td>
 <td align="left">Madrid Barajas Airport</td>
 <td align="left">LEMD</td>
 <td align="right">40.49355</td>
@@ -1920,22 +1430,14 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="right">8.543125</td>
 </tr>
 <tr class="even">
-<td align="left">BEL</td>
-<td align="left">Brussels Airlines</td>
-<td align="left">Brussels Airport</td>
-<td align="left">EBBR</td>
-<td align="right">50.90138</td>
-<td align="right">4.484444</td>
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Prague Vaclav Havel Airport</td>
+<td align="left">LKPR</td>
+<td align="right">50.10083</td>
+<td align="right">14.260000</td>
 </tr>
 <tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Geneva International Airport</td>
-<td align="left">LSGG</td>
-<td align="right">46.23806</td>
-<td align="right">6.108950</td>
-</tr>
-<tr class="even">
 <td align="left">CLG</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">Brest Bretagne Airport</td>
@@ -1943,15 +1445,15 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="right">48.44722</td>
 <td align="right">-4.421660</td>
 </tr>
-<tr class="odd">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Malaga Costa Del Sol Airport</td>
-<td align="left">LEMG</td>
-<td align="right">36.67490</td>
-<td align="right">-4.499100</td>
-</tr>
 <tr class="even">
+<td align="left">EZY</td>
+<td align="left">easyJet</td>
+<td align="left">Lille Airport</td>
+<td align="left">LFQQ</td>
+<td align="right">50.56333</td>
+<td align="right">3.086944</td>
+</tr>
+<tr class="odd">
 <td align="left">HOP</td>
 <td align="left">HOP!</td>
 <td align="left">Lille Airport</td>
@@ -1959,29 +1461,21 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="right">50.56333</td>
 <td align="right">3.086944</td>
 </tr>
-<tr class="odd">
-<td align="left">SWR</td>
-<td align="left">Swiss</td>
+<tr class="even">
+<td align="left">AUA</td>
+<td align="left">Austrian Airlines (Star Alliance Livery)</td>
 <td align="left">Zurich Airport</td>
 <td align="left">LSZH</td>
 <td align="right">47.46472</td>
 <td align="right">8.549167</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">CLG</td>
 <td align="left">Chalair Aviation</td>
-<td align="left">Brest Bretagne Airport</td>
-<td align="left">LFRB</td>
-<td align="right">48.44722</td>
-<td align="right">-4.421660</td>
-</tr>
-<tr class="odd">
-<td align="left">EZY</td>
-<td align="left">EasyJet</td>
-<td align="left">Lyon Saint Exupery Airport</td>
-<td align="left">LFLL</td>
-<td align="right">45.71964</td>
-<td align="right">5.089108</td>
+<td align="left">Caen Carpiquet Airport</td>
+<td align="left">LFRK</td>
+<td align="right">49.17328</td>
+<td align="right">-0.449870</td>
 </tr>
 <tr class="even">
 <td align="left">AFR</td>
@@ -1992,6 +1486,22 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="right">2.379444</td>
 </tr>
 <tr class="odd">
+<td align="left">EZY</td>
+<td align="left">easyJet</td>
+<td align="left">Lyon Saint Exupery Airport</td>
+<td align="left">LFLL</td>
+<td align="right">45.71964</td>
+<td align="right">5.089108</td>
+</tr>
+<tr class="even">
+<td align="left">DAH</td>
+<td align="left">Air Algerie</td>
+<td align="left">Algiers Houari Boumediene Airport</td>
+<td align="left">DAAG</td>
+<td align="right">36.69101</td>
+<td align="right">3.215408</td>
+</tr>
+<tr class="odd">
 <td align="left">CLG</td>
 <td align="left">Chalair Aviation</td>
 <td align="left">Montpellier Mediterranee Airport</td>
@@ -2000,8 +1510,344 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="right">3.961389</td>
 </tr>
 <tr class="even">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Marseille Provence Airport</td>
+<td align="left">LFML</td>
+<td align="right">43.43666</td>
+<td align="right">5.215000</td>
+</tr>
+<tr class="odd">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Charles de Gaulle Airport</td>
+<td align="left">LFPG</td>
+<td align="right">49.01252</td>
+<td align="right">2.555752</td>
+</tr>
+<tr class="even">
+<td align="left">RYR</td>
+<td align="left">Ryanair</td>
+<td align="left">Cork Airport</td>
+<td align="left">EICK</td>
+<td align="right">51.84138</td>
+<td align="right">-8.491110</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">easyJet</td>
+<td align="left">Amsterdam Schiphol Airport</td>
+<td align="left">EHAM</td>
+<td align="right">52.30861</td>
+<td align="right">4.763889</td>
+</tr>
+<tr class="even">
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Strasbourg Airport</td>
+<td align="left">LFST</td>
+<td align="right">48.54361</td>
+<td align="right">7.637222</td>
+</tr>
+<tr class="odd">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Orly Airport</td>
+<td align="left">LFPO</td>
+<td align="right">48.72333</td>
+<td align="right">2.379444</td>
+</tr>
+<tr class="even">
 <td align="left">HOP</td>
 <td align="left">HOP!</td>
+<td align="left">Lyon Saint Exupery Airport</td>
+<td align="left">LFLL</td>
+<td align="right">45.71964</td>
+<td align="right">5.089108</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Lyon Saint Exupery Airport</td>
+<td align="left">LFLL</td>
+<td align="right">45.71964</td>
+<td align="right">5.089108</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">easyJet</td>
+<td align="left">Basel Mulhouse-Freiburg EuroAirport</td>
+<td align="left">LFSB</td>
+<td align="right">47.59890</td>
+<td align="right">7.528300</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Geneva International Airport</td>
+<td align="left">LSGG</td>
+<td align="right">46.23806</td>
+<td align="right">6.108950</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">easyJet</td>
+<td align="left">Nice Cote d’Azur Airport</td>
+<td align="left">LFMN</td>
+<td align="right">43.66527</td>
+<td align="right">7.215000</td>
+</tr>
+<tr class="odd">
+<td align="left">VLG</td>
+<td align="left">Vueling</td>
+<td align="left">Barcelona El Prat Airport</td>
+<td align="left">LEBL</td>
+<td align="right">41.29707</td>
+<td align="right">2.078463</td>
+</tr>
+<tr class="even">
+<td align="left">CLG</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">Nantes Atlantique Airport</td>
+<td align="left">LFRS</td>
+<td align="right">47.15694</td>
+<td align="right">-1.607770</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">London Gatwick Airport</td>
+<td align="left">EGKK</td>
+<td align="right">51.14805</td>
+<td align="right">-0.190270</td>
+</tr>
+<tr class="even">
+<td align="left">HOP</td>
+<td align="left">HOP!</td>
+<td align="left">Lyon Saint Exupery Airport</td>
+<td align="left">LFLL</td>
+<td align="right">45.71964</td>
+<td align="right">5.089108</td>
+</tr>
+<tr class="odd">
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Madrid Barajas Airport</td>
+<td align="left">LEMD</td>
+<td align="right">40.49355</td>
+<td align="right">-3.566760</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Lisbon Humberto Delgado Airport</td>
+<td align="left">LPPT</td>
+<td align="right">38.78131</td>
+<td align="right">-9.135910</td>
+</tr>
+<tr class="odd">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Orly Airport</td>
+<td align="left">LFPO</td>
+<td align="right">48.72333</td>
+<td align="right">2.379444</td>
+</tr>
+<tr class="even">
+<td align="left">CLG</td>
+<td align="left">Chalair Aviation</td>
+<td align="left">Brest Bretagne Airport</td>
+<td align="left">LFRB</td>
+<td align="right">48.44722</td>
+<td align="right">-4.421660</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Lille Airport</td>
+<td align="left">LFQQ</td>
+<td align="right">50.56333</td>
+<td align="right">3.086944</td>
+</tr>
+<tr class="even">
+<td align="left">BAW</td>
+<td align="left">British Airways</td>
+<td align="left">London Gatwick Airport</td>
+<td align="left">EGKK</td>
+<td align="right">51.14805</td>
+<td align="right">-0.190270</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Marseille Provence Airport</td>
+<td align="left">LFML</td>
+<td align="right">43.43666</td>
+<td align="right">5.215000</td>
+</tr>
+<tr class="even">
+<td align="left">KLM</td>
+<td align="left">KLM</td>
+<td align="left">Amsterdam Schiphol Airport</td>
+<td align="left">EHAM</td>
+<td align="right">52.30861</td>
+<td align="right">4.763889</td>
+</tr>
+<tr class="odd">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Charles de Gaulle Airport</td>
+<td align="left">LFPG</td>
+<td align="right">49.01252</td>
+<td align="right">2.555752</td>
+</tr>
+<tr class="even">
+<td align="left">HOP</td>
+<td align="left">HOP!</td>
+<td align="left">Lille Airport</td>
+<td align="left">LFQQ</td>
+<td align="right">50.56333</td>
+<td align="right">3.086944</td>
+</tr>
+<tr class="odd">
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Malaga Costa Del Sol Airport</td>
+<td align="left">LEMG</td>
+<td align="right">36.67490</td>
+<td align="right">-4.499100</td>
+</tr>
+<tr class="even">
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Palermo Falcone-Borsellino Airport</td>
+<td align="left">LICJ</td>
+<td align="right">38.17595</td>
+<td align="right">13.091010</td>
+</tr>
+<tr class="odd">
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Ajaccio Napoleon Bonaparte Airport</td>
+<td align="left">LFKJ</td>
+<td align="right">41.92388</td>
+<td align="right">8.802500</td>
+</tr>
+<tr class="even">
+<td align="left">FPO</td>
+<td align="left">ASL Airlines France</td>
+<td align="left">Paris Charles de Gaulle Airport</td>
+<td align="left">LFPG</td>
+<td align="right">49.01252</td>
+<td align="right">2.555752</td>
+</tr>
+<tr class="odd">
+<td align="left">HOP</td>
+<td align="left">HOP!</td>
+<td align="left">Marseille Provence Airport</td>
+<td align="left">LFML</td>
+<td align="right">43.43666</td>
+<td align="right">5.215000</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Lyon Saint Exupery Airport</td>
+<td align="left">LFLL</td>
+<td align="right">45.71964</td>
+<td align="right">5.089108</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Nice Cote d’Azur Airport</td>
+<td align="left">LFMN</td>
+<td align="right">43.66527</td>
+<td align="right">7.215000</td>
+</tr>
+<tr class="even">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Orly Airport</td>
+<td align="left">LFPO</td>
+<td align="right">48.72333</td>
+<td align="right">2.379444</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Barcelona El Prat Airport</td>
+<td align="left">LEBL</td>
+<td align="right">41.29707</td>
+<td align="right">2.078463</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Amsterdam Schiphol Airport</td>
+<td align="left">EHAM</td>
+<td align="right">52.30861</td>
+<td align="right">4.763889</td>
+</tr>
+<tr class="odd">
+<td align="left">SWR</td>
+<td align="left">Swiss</td>
+<td align="left">Zurich Airport</td>
+<td align="left">LSZH</td>
+<td align="right">47.46472</td>
+<td align="right">8.549167</td>
+</tr>
+<tr class="even">
+<td align="left">VLG</td>
+<td align="left">Vueling</td>
+<td align="left">Barcelona El Prat Airport</td>
+<td align="left">LEBL</td>
+<td align="right">41.29707</td>
+<td align="right">2.078463</td>
+</tr>
+<tr class="odd">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Charles de Gaulle Airport</td>
+<td align="left">LFPG</td>
+<td align="right">49.01252</td>
+<td align="right">2.555752</td>
+</tr>
+<tr class="even">
+<td align="left">HOP</td>
+<td align="left">HOP!</td>
+<td align="left">Lille Airport</td>
+<td align="left">LFQQ</td>
+<td align="right">50.56333</td>
+<td align="right">3.086944</td>
+</tr>
+<tr class="odd">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Orly Airport</td>
+<td align="left">LFPO</td>
+<td align="right">48.72333</td>
+<td align="right">2.379444</td>
+</tr>
+<tr class="even">
+<td align="left">JAF</td>
+<td align="left">TUI fly Belgium</td>
+<td align="left">Mahon Menorca Airport</td>
+<td align="left">LEMH</td>
+<td align="right">39.86259</td>
+<td align="right">4.218647</td>
+</tr>
+<tr class="odd">
+<td align="left">BEE</td>
+<td align="left">Flybe</td>
+<td align="left">Birmingham Airport</td>
+<td align="left">EGBB</td>
+<td align="right">52.45385</td>
+<td align="right">-1.748020</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
 <td align="left">Marseille Provence Airport</td>
 <td align="left">LFML</td>
 <td align="right">43.43666</td>
@@ -2016,6 +1862,22 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="right">7.215000</td>
 </tr>
 <tr class="even">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Belfast International Airport</td>
+<td align="left">EGAA</td>
+<td align="right">54.65750</td>
+<td align="right">-6.215830</td>
+</tr>
+<tr class="odd">
+<td align="left">HOP</td>
+<td align="left">HOP!</td>
+<td align="left">Lyon Saint Exupery Airport</td>
+<td align="left">LFLL</td>
+<td align="right">45.71964</td>
+<td align="right">5.089108</td>
+</tr>
+<tr class="even">
 <td align="left">AFR</td>
 <td align="left">Air France</td>
 <td align="left">Paris Charles de Gaulle Airport</td>
@@ -2024,28 +1886,76 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="right">2.555752</td>
 </tr>
 <tr class="odd">
+<td align="left">AEE</td>
+<td align="left">Aegean Airlines</td>
+<td align="left">Athens Eleftherios Venizelos</td>
+<td align="left">LGAV</td>
+<td align="right">37.93635</td>
+<td align="right">23.944460</td>
+</tr>
+<tr class="even">
 <td align="left">EZY</td>
-<td align="left">easyJet</td>
+<td align="left">EasyJet</td>
+<td align="left">London Gatwick Airport</td>
+<td align="left">EGKK</td>
+<td align="right">51.14805</td>
+<td align="right">-0.190270</td>
+</tr>
+<tr class="odd">
+<td align="left">RAM</td>
+<td align="left">Royal Air Maroc</td>
+<td align="left">Casablanca Mohammed V International Airport</td>
+<td align="left">GMMN</td>
+<td align="right">33.36746</td>
+<td align="right">-7.589960</td>
+</tr>
+<tr class="even">
+<td align="left">KLM</td>
+<td align="left">KLM</td>
 <td align="left">Amsterdam Schiphol Airport</td>
 <td align="left">EHAM</td>
 <td align="right">52.30861</td>
 <td align="right">4.763889</td>
 </tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Basel Mulhouse-Freiburg EuroAirport</td>
+<td align="left">LFSB</td>
+<td align="right">47.59890</td>
+<td align="right">7.528300</td>
+</tr>
 <tr class="even">
-<td align="left">VOE</td>
-<td align="left">Volotea</td>
-<td align="left">Toulon-Hyeres Airport</td>
-<td align="left">LFTH</td>
-<td align="right">43.09734</td>
-<td align="right">6.146031</td>
+<td align="left">PBD</td>
+<td align="left">Pobeda</td>
+<td align="left">Moscow Vnukovo International Airport</td>
+<td align="left">UUWW</td>
+<td align="right">55.59153</td>
+<td align="right">37.261478</td>
 </tr>
 <tr class="odd">
-<td align="left">AFR</td>
-<td align="left">Air France</td>
-<td align="left">Paris Orly Airport</td>
-<td align="left">LFPO</td>
-<td align="right">48.72333</td>
-<td align="right">2.379444</td>
+<td align="left">WZZ</td>
+<td align="left">Wizz Air</td>
+<td align="left">Warsaw Chopin Airport</td>
+<td align="left">EPWA</td>
+<td align="right">52.16575</td>
+<td align="right">20.967119</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Geneva International Airport</td>
+<td align="left">LSGG</td>
+<td align="right">46.23806</td>
+<td align="right">6.108950</td>
+</tr>
+<tr class="odd">
+<td align="left">VLG</td>
+<td align="left">Vueling</td>
+<td align="left">Palma de Mallorca Airport</td>
+<td align="left">LEPA</td>
+<td align="right">39.55167</td>
+<td align="right">2.738808</td>
 </tr>
 <tr class="even">
 <td align="left">HOP</td>
@@ -2054,6 +1964,22 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="left">LFLL</td>
 <td align="right">45.71964</td>
 <td align="right">5.089108</td>
+</tr>
+<tr class="odd">
+<td align="left">THY</td>
+<td align="left">Turkish Airlines</td>
+<td align="left">Istanbul Ataturk International Airport</td>
+<td align="left">LTBA</td>
+<td align="right">40.97692</td>
+<td align="right">28.814600</td>
+</tr>
+<tr class="even">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Orly Airport</td>
+<td align="left">LFPO</td>
+<td align="right">48.72333</td>
+<td align="right">2.379444</td>
 </tr>
 <tr class="odd">
 <td align="left">EZY</td>
@@ -2064,28 +1990,204 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <td align="right">5.089108</td>
 </tr>
 <tr class="even">
-<td align="left">CLG</td>
-<td align="left">Chalair Aviation</td>
-<td align="left">Nantes Atlantique Airport</td>
-<td align="left">LFRS</td>
-<td align="right">47.15694</td>
-<td align="right">-1.607770</td>
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Charles de Gaulle Airport</td>
+<td align="left">LFPG</td>
+<td align="right">49.01252</td>
+<td align="right">2.555752</td>
 </tr>
 <tr class="odd">
+<td align="left">RYR</td>
+<td align="left">Ryanair</td>
+<td align="left">Edinburgh Airport</td>
+<td align="left">EGPH</td>
+<td align="right">55.95000</td>
+<td align="right">-3.372500</td>
+</tr>
+<tr class="even">
 <td align="left">EZY</td>
-<td align="left">easyJet</td>
-<td align="left">Brussels Airport</td>
-<td align="left">EBBR</td>
-<td align="right">50.90138</td>
-<td align="right">4.484444</td>
+<td align="left">EasyJet</td>
+<td align="left">Lisbon Humberto Delgado Airport</td>
+<td align="left">LPPT</td>
+<td align="right">38.78131</td>
+<td align="right">-9.135910</td>
+</tr>
+<tr class="odd">
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Ajaccio Napoleon Bonaparte Airport</td>
+<td align="left">LFKJ</td>
+<td align="right">41.92388</td>
+<td align="right">8.802500</td>
 </tr>
 <tr class="even">
 <td align="left">HOP</td>
 <td align="left">HOP!</td>
-<td align="left">Lyon Saint Exupery Airport</td>
-<td align="left">LFLL</td>
-<td align="right">45.71964</td>
-<td align="right">5.089108</td>
+<td align="left">Calvi Sainte-Catherine Airport</td>
+<td align="left">LFKC</td>
+<td align="right">42.52036</td>
+<td align="right">8.793028</td>
+</tr>
+<tr class="odd">
+<td align="left">HOP</td>
+<td align="left">HOP!</td>
+<td align="left">Marseille Provence Airport</td>
+<td align="left">LFML</td>
+<td align="right">43.43666</td>
+<td align="right">5.215000</td>
+</tr>
+<tr class="even">
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Figari Sud-Corse Airport</td>
+<td align="left">LFKF</td>
+<td align="right">41.50222</td>
+<td align="right">9.096667</td>
+</tr>
+<tr class="odd">
+<td align="left">HOP</td>
+<td align="left">HOP!</td>
+<td align="left">Nice Cote d’Azur Airport</td>
+<td align="left">LFMN</td>
+<td align="right">43.66527</td>
+<td align="right">7.215000</td>
+</tr>
+<tr class="even">
+<td align="left">FPO</td>
+<td align="left">ASL Airlines France</td>
+<td align="left">Toulouse Blagnac Airport</td>
+<td align="left">LFBO</td>
+<td align="right">43.63500</td>
+<td align="right">1.367778</td>
+</tr>
+<tr class="odd">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Orly Airport</td>
+<td align="left">LFPO</td>
+<td align="right">48.72333</td>
+<td align="right">2.379444</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Milan Malpensa Airport</td>
+<td align="left">LIMC</td>
+<td align="right">45.63060</td>
+<td align="right">8.728111</td>
+</tr>
+<tr class="odd">
+<td align="left">RYR</td>
+<td align="left">Ryanair</td>
+<td align="left">Porto Francisco de Sa Carneiro Airport</td>
+<td align="left">LPPR</td>
+<td align="right">41.24805</td>
+<td align="right">-8.681380</td>
+</tr>
+<tr class="even">
+<td align="left">RYR</td>
+<td align="left">Ryanair</td>
+<td align="left">London Stansted Airport</td>
+<td align="left">EGSS</td>
+<td align="right">51.88500</td>
+<td align="right">0.235000</td>
+</tr>
+<tr class="odd">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Hamburg Airport</td>
+<td align="left">EDDH</td>
+<td align="right">53.63038</td>
+<td align="right">9.988228</td>
+</tr>
+<tr class="even">
+<td align="left">TAP</td>
+<td align="left">TAP Portugal</td>
+<td align="left">Lisbon Humberto Delgado Airport</td>
+<td align="left">LPPT</td>
+<td align="right">38.78131</td>
+<td align="right">-9.135910</td>
+</tr>
+<tr class="odd">
+<td align="left">EIN</td>
+<td align="left">Aer Lingus</td>
+<td align="left">Dublin Airport</td>
+<td align="left">EIDW</td>
+<td align="right">53.42138</td>
+<td align="right">-6.270000</td>
+</tr>
+<tr class="even">
+<td align="left">EZY</td>
+<td align="left">EasyJet</td>
+<td align="left">Liverpool John Lennon Airport</td>
+<td align="left">EGGP</td>
+<td align="right">53.33361</td>
+<td align="right">-2.849720</td>
+</tr>
+<tr class="odd">
+<td align="left">KLM</td>
+<td align="left">KLM</td>
+<td align="left">Amsterdam Schiphol Airport</td>
+<td align="left">EHAM</td>
+<td align="right">52.30861</td>
+<td align="right">4.763889</td>
+</tr>
+<tr class="even">
+<td align="left">RYR</td>
+<td align="left">Ryanair</td>
+<td align="left">Seville San Pablo Airport</td>
+<td align="left">LEZL</td>
+<td align="right">37.41800</td>
+<td align="right">-5.893100</td>
+</tr>
+<tr class="odd">
+<td align="left">VLG</td>
+<td align="left">Vueling</td>
+<td align="left">Malaga Costa Del Sol Airport</td>
+<td align="left">LEMG</td>
+<td align="right">36.67490</td>
+<td align="right">-4.499100</td>
+</tr>
+<tr class="even">
+<td align="left">VOE</td>
+<td align="left">Volotea</td>
+<td align="left">Dubrovnik Airport</td>
+<td align="left">LDDU</td>
+<td align="right">42.56135</td>
+<td align="right">18.268240</td>
+</tr>
+<tr class="odd">
+<td align="left">RYR</td>
+<td align="left">Ryanair</td>
+<td align="left">Milan Bergamo Il Caravaggio International Airport</td>
+<td align="left">LIME</td>
+<td align="right">45.67388</td>
+<td align="right">9.704166</td>
+</tr>
+<tr class="even">
+<td align="left">AFR</td>
+<td align="left">Air France</td>
+<td align="left">Paris Charles de Gaulle Airport</td>
+<td align="left">LFPG</td>
+<td align="right">49.01252</td>
+<td align="right">2.555752</td>
+</tr>
+<tr class="odd">
+<td align="left">IBE</td>
+<td align="left">Iberia</td>
+<td align="left">Madrid Barajas Airport</td>
+<td align="left">LEMD</td>
+<td align="right">40.49355</td>
+<td align="right">-3.566760</td>
+</tr>
+<tr class="even">
+<td align="left">HOP</td>
+<td align="left">HOP!</td>
+<td align="left">Bastia Poretta Airport</td>
+<td align="left">LFKB</td>
+<td align="right">42.55000</td>
+<td align="right">9.484722</td>
 </tr>
 </tbody>
 </table>
@@ -2094,6 +2196,55 @@ knitr::kable(filteredData, caption = &quot;page 1 of arrival for BOD&quot;)</cod
 <ul>
 <li>Get all pages of data by generating the correct query to API :)</li>
 </ul>
+</div>
+</div>
+<div id="docker" class="section level2">
+<h2>Docker !</h2>
+<p>This is the ultimate and probably the most complex part of this big tutorial.</p>
+<p>In real webscraping project, there are two possible use case : a one shoot harvest, or a daily/monthly/etc. harvest of data.</p>
+<p>If you need to collect <strong>one year of data on a daily basis</strong>, you cannot use your personnel computer. You need to connect and run your from a distant server.</p>
+<p>To be really really short on subject, Docker is a technology which encapsulate your software into an isolated (and if possible immutable) container on the top of your system. The concept is similar to virtual machine (VM), but more efficient.</p>
+<p>Here we are, we use this Docker container technology to encapsulate a webscrapping script. After that you could save your and launch it on a webserver.</p>
+<p>There are three big step to understand in container lifecycle:</p>
+<ul>
+<li><p>We describe the composition of an <strong>image</strong> into a <strong>Dockerfile</strong> file using special Docker syntax. It’s like a recipe into cookbook. For example, you could find lot of recipes on this site : DockerHub.</p></li>
+<li><p>Next, like a recipe in the real life, you need to concretize this recipe into some delicious cake. Image need to be built before usage.</p></li>
+<li><p>Finally, you run the builted image.</p></li>
+</ul>
+<div id="linux-way" class="section level3">
+<h3>Linux way</h3>
+<p><strong>PREPARE image</strong></p>
+<p>Open your linux terminal. Go to <code>docker-scripts</code> folder into the folder which contain this tutorial on your disk.</p>
+<p><strong>BUILD image</strong></p>
+<p>The building of this image take lot of times (ten minutes), this is due to the huge dplyr library. Run the <code>docker build</code> command in the folder which contain the <code>Dockerfile</code> description of the image.</p>
+<pre class="bash"><code>docker build . --tag=rflightscraps</code></pre>
+<p><strong>LAUNCH IMAGE</strong></p>
+<ol style="list-style-type: lower-alpha">
+<li>Using a <strong>binded volume</strong>, this is the easiest way actually. Open your terminal, go to the folder of your script. Create a new folder named <code>localbackup</code> and run the container <code>rflightscraps</code> with correct path.</li>
+</ol>
+<pre class="bash"><code>mkdir localbackup
+docker run --name rflightscraps -d -e UID=1000 -e GID=1000 --mount type=bind,source=$(pwd)/localbackup,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscraps --name rflightscraps</code></pre>
+<p>To see if your container is running and consult the logs of execution :</p>
+<pre class="bash"><code>sudo docker ps
+sudo docker logs rflightscraps</code></pre>
+<p>To consult the result of automatic harvesting, consult the <code>docker-scripts/localbackup</code> folder using <code>ls</code> unix command. You see a list of csv which correspond to harvest made every minute. If you want to change this, you need to modify the <code>crontab</code> file following the <a href="https://crontab.guru/#*_*_*_*_*">cron syntax</a>, and rebuild/relaunch the image (it take less time, because you only modify one file, no need to recompile).</p>
+<ol start="2" style="list-style-type: lower-alpha">
+<li>Same thing, but using a <em>named volume</em>, a more portable way to share data between docker container, but it lacks some features on permissions to correctly export data.</li>
+</ol>
+<p>Create a named volume, independent from filesystem</p>
+<pre class="bash"><code>docker volume create --name myDataVolume
+docker volume ls</code></pre>
+<p>Mount the volume :</p>
+<pre class="bash"><code>docker run --mount type=volume,source=myDataVolume,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscrap</code></pre>
+<p>Export data :</p>
+<ul>
+<li><p>Using a <code>alpine</code> image, we mount the named volume (<code>myDataVolume</code>) to a <code>/alpine_data</code> folder inside the <code>alpine</code> container.</p></li>
+<li><p>Then, we create a new folder inside the <code>alpine</code> container named <code>/alpine_backup</code>.</p></li>
+<li><p>We then create an archive containing the contents of the <code>/alpine_data</code> folder and we store it inside the <code>/alpine_backup</code> folder (inside the container).</p></li>
+<li><p>We also mount the <code>/alpine_backup</code> folder from the container to the docker host (your local machine) in a folder named <code>/local_backup</code> inside the current directory.</p></li>
+</ul>
+<p><code>docker run --rm -v myDataVolume:/alpine_data -v $(pwd)/local_backup:/alpine_backup alpine:latest tar cvf /alpine_backup/scrap_data_&quot;$(date '+%y-%m-%d')&quot;.tar /alpine_data</code></p>
+<pre class="r"><code>remDr$close()</code></pre>
 </div>
 </div>
 </div>

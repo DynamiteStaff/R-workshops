@@ -12,6 +12,10 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, error=TRUE)
 library(rvest)
 library(tidyverse)
 library(knitr)
+library(plyr)
+library(dplyr)
+library(jsonlite)
+library(lubridate)
 ```
 
 # Scrape all departures or arrivals from FlightRadar website
@@ -50,6 +54,8 @@ library(RSelenium)
 
 It's possible to use directly Selenium with your browser, but we prefer to use directly a server version. Why ? Because using server version of Selenium, you have the possibility a) to sent command on local or remote server running Selenium b) which run a different browsers and/or OS, c) to distribute tests over multiple machines.
 
+Selenium is a fast moving project, and some release are really buggy, so try to choose a stable version, and don't deseperate.
+
 ### Run a Selenium server
 
 Install Docker on your OS using docker documentation. 
@@ -57,7 +63,7 @@ Install Docker on your OS using docker documentation.
 When it's done, `pull and run` [one of](https://github.com/SeleniumHQ/docker-selenium) Docker Selenium-Server image using terminal. For this tutorial we use Firefox !
 
 ```bash
-sudo docker run -d -p 4445:4444 selenium/standalone-firefox:2.54.0
+sudo docker run --name selenium -d -p 4445:4444 selenium/standalone-firefox:3.14.0-arsenic
 ```
 
 Type `sudo docker ps` to see if server correctly run and listen to port 4445.
@@ -69,6 +75,7 @@ Connect and open the browser on the server.
 ```{r, message=FALSE, error=FALSE}
 remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4445L)
 remDr$open()
+remDr$maxWindowSize()
 ```
 
 ### Basic command for RSelenium
@@ -118,7 +125,7 @@ Load the page in the selenium server
 ```{r, message=FALSE}
 remDr$navigate("https://www.flightradar24.com/data/airports/bod/arrivals")
 Sys.sleep(5) # time to load !
-remDr$screenshot(display = TRUE)
+remDr$screenshot(file = "screenshoot.png")
 ```
 
 Building XPATH correct expression could be difficult. A good way to test validity of your XPATH expressions was to use an interactive way, with web developper console. 
@@ -169,22 +176,29 @@ This command return an error message (if not, you're lucky !), not very explicit
 An element of the webpage overlapp our button, so browser say us that's not possible to clic on this webelement. Use snapshot function to see the page : 
 
 ```{r, message=FALSE}
-remDr$screenshot(file = 'screenshoot.png' )
+remDr$screenshot(file = 'screenshoot_overlap.png' )
 ```
 
 If we hide these elements using XPath and javascript injection, everything goes to normal. First we accept cookies.
 
 ```{r, message=FALSE, delay = TRUE}
-cookiesButton <- remDr$findElement(using = 'xpath',"//div[@class='important-banner__close']")
-cookiesButton$clickElement()
-remDr$screenshot(file = 'screenshoot.png' )
+hideCookie <- function (x){
+  cookiesButton <- x$findElement(using = 'xpath',"//div[@class='important-banner__close']") 
+  cookiesButton$clickElement()
+}
+
+hideCookie(remDr)
+remDr$screenshot(file = 'screenshoot_hide.png')
 ```
 
 The navbar element create problem, so we hide it using javascript injection :
 
 ```{r, message=FALSE, delay = TRUE}
-script <- "document.getElementById('navContainer').hidden = true;"
-remDr$executeScript(script)
+hideNavBar <- function (x) {
+  script <- "document.getElementById('navContainer').hidden = true;"
+  x$executeScript(script)
+}
+hideNavBar(remDr)
 ```
 
 Now you can `clickElement()` without problem :)
@@ -213,30 +227,40 @@ See changes before and after using `remDr$screenshot(display = TRUE)` command
 
 <div id="spoiler" style="display:none">
 
-```{r, message=FALSE}
 
+```{r, message=FALSE}
+ remDr$refresh() # reload page
+ Sys.sleep(5) # time to load !
+ 
+ hideNavBar(remDr) 
+ 
  searchElements <- function() { 
    elements <- remDr$findElements(using = 'xpath', "//button[@class='btn btn-table-action btn-flights-load' and not(contains(@style,'display: none;'))]")
    return(elements)
    }
  
 clic <- function(x){
-  Sys.sleep(3) # time to load
+  print(paste("Clic on ", x$getElementText() ," button")) 
   x$clickElement()
+  Sys.sleep(5) # time to load
  }
  
-elements <- searchElements()
-while(length(elements) > 0)
-{
+loadmorebutton <- searchElements()
+nbElements <- length(loadmorebutton)
+
+while( nbElements > 0)
+{  
+   print(paste("nb of button >", nbElements))
    lapply(loadmorebutton, clic)
-   elements <- searchElements()
+   Sys.sleep(5) # time to load
+   loadmorebutton <- searchElements()
+   nbElements <- length(loadmorebutton)
 }
 
-Sys.sleep(5) # time to load
-
-remDr$screenshot(display = TRUE)
 
 ```
+
+But we only have the number of clic and screenshot return only part of the viewer. In the next exercice we try to return all data on the page for the first result day after all these clics.
 
 </div>
 
@@ -255,20 +279,27 @@ We use the already discussed library nammed `rvest` to prepare data for datafram
 
 ```{r, message=FALSE}
 
-library(rvest)
-
 src <- remDr$getPageSource()[[1]]  %>% read_html()
+
+searchDateElements <- function() { 
+   elements <- remDr$findElements(using = 'xpath',"//*[contains(@class,'row-date-separator')]/td")
+   return(elements)
+}
+
+# get the first date
+flightDateElements <- searchDateElements()
+flightDate <- flightDateElements[[1]]$getElementText()[[1]]
 
 column <- function(x) src %>% html_nodes(xpath = x) %>% html_text(trim=TRUE)
 
 df <- data.frame(
-  hour = column("//tr[@data-date='Tuesday, Sep 18']//td[1]/text()"),
-  from = column("//tr[@data-date='Tuesday, Sep 18']//span[@class='hide-mobile-only ng-binding']/text()"),
-  code = column("//tr[@data-date='Tuesday, Sep 18']//div[@ng-show='(objFlight.flight.airport.origin)']//a//text()"),
-  airline = column("//tr[@data-date='Tuesday, Sep 18']//td[@class='cell-airline']//a//text()"),
-  plane = column("//tr[@data-date='Tuesday, Sep 18']//span[@class='notranslate ng-binding']/text()"),
-  planecode =column("//tr[@data-date='Tuesday, Sep 18']//a[@ng-show='(objFlight.flight.aircraft.registration)']//text()"),
-  info = column("//tr[@data-date='Tuesday, Sep 18']//td[7]"),
+  hour = column(paste("//tr[@data-date='",flightDate,"']//td[1]/text()",sep="")),
+  from = column(paste("//tr[@data-date='",flightDate,"']//span[@class='hide-mobile-only ng-binding']/text()",sep="")),
+  code = column(paste("//tr[@data-date='",flightDate,"']//div[@ng-show='(objFlight.flight.airport.origin)']//a//text()",sep="")),
+  airline = column(paste("//tr[@data-date='",flightDate,"']//td[@class='cell-airline']//a//text()",sep="")),
+  plane = column(paste("//tr[@data-date='",flightDate,"']//span[@class='notranslate ng-binding']/text()",sep="")),
+  planecode =column(paste("//tr[@data-date='",flightDate,"']//a[@ng-show='(objFlight.flight.aircraft.registration)']//text()",sep="")),
+  info = column(paste("//tr[@data-date='",flightDate,"']//td[7]",sep="")),
   stringsAsFactors = FALSE
 )
 
@@ -309,9 +340,10 @@ Copy paste this url in your browser to see how the result json is structured. In
 We download and convert json data to data.frame using the jsonlite wonderfull package :) Why wonderfull ? Because jsonlite had an option to flatten the structure of json which normally contain data.frame into data.fram into data.frame ... 
 
 ```{r, message=FALSE}
-library(jsonlite)
 
-url <- "https://api.flightradar24.com/common/v1/airport.json?code=bod&plugin[]=&plugin-setting[schedule][mode]=&plugin-setting[schedule][timestamp]=1537297562&page=1&limit=100&token="
+timestamp <- as.numeric(as.POSIXct(now()))
+
+url <- paste("https://api.flightradar24.com/common/v1/airport.json?code=bod&plugin[]=&plugin-setting[schedule][mode]=&plugin-setting[schedule][timestamp]=",timestamp,"&page=1&limit=100&token=",sep="")
 
 # https://cran.r-project.org/web/packages/jsonlite/vignettes/json-aaquickstart.html
 json <- jsonlite::fromJSON(url,flatten = T) 
@@ -319,7 +351,6 @@ json <- jsonlite::fromJSON(url,flatten = T)
 
 
 ```{r, message=FALSE}
-library(plyr)
 pageOfData <- json$result$response$airport$pluginData$schedule$arrivals$data 
 filteredData <- pageOfData %>% select(flight.airline.code.icao, flight.airline.name, flight.airport.origin.name, flight.airport.origin.code.icao, flight.airport.origin.position.latitude, flight.airport.origin.position.longitude) 
 
@@ -332,4 +363,93 @@ knitr::kable(filteredData, caption = "page 1 of arrival for BOD")
 ### Exercices
 
 - Get all pages of data by generating the correct query to API :)
+
+## Docker !
+
+This is the ultimate and probably the most complex part of this big tutorial.
+
+In real webscraping project, there are two possible use case : a one shoot harvest, or a daily/monthly/etc. harvest of data.
+
+If you need to collect **one year of data on a daily basis**, you cannot use your personnel computer. You need to connect and run your from a distant server.
+
+To be really really short on subject, Docker is a technology which encapsulate your software into an isolated (and if possible immutable) container on the top of your system. The concept is similar to virtual machine (VM), but more efficient.
+
+Here we are, we use this Docker container technology to encapsulate a webscrapping script. After that you could save your and launch it on a webserver.
+
+There are three big step to understand in container lifecycle: 
+
+- We describe the composition of an **image** into a **Dockerfile** file using special Docker syntax. It's like a recipe into cookbook. For example, you could find lot of recipes on this site : DockerHub.
+
+- Next, like a recipe in the real life, you need to concretize this recipe into some delicious cake. Image need to be built before usage. 
+
+- Finally, you run the builted image.
+
+
+### Linux way
+
+**PREPARE image**
+
+Open your linux terminal.
+Go to `docker-scripts` folder into the folder which contain this tutorial on your disk.
+
+**BUILD image**
+
+The building of this image take lot of times (ten minutes), this is due to the huge dplyr library. Run the `docker build` command in the folder which contain the `Dockerfile` description of the image.
+
+```bash
+docker build . --tag=rflightscraps
+```
+
+**LAUNCH IMAGE**
+
+a) Using a **binded volume**, this is the easiest way actually. Open your terminal, go to the folder of your script. Create a new folder named `localbackup` and run the container `rflightscraps` with correct path.
+
+```bash
+mkdir localbackup
+docker run --name rflightscraps -d -e UID=1000 -e GID=1000 --mount type=bind,source=$(pwd)/localbackup,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscraps --name rflightscraps
+```
+
+To see if your container is running and consult the logs of execution : 
+
+```bash
+sudo docker ps
+sudo docker logs rflightscraps
+```
+
+To consult the result of automatic harvesting, consult the `docker-scripts/localbackup` folder using `ls` unix command. You see a list of csv which correspond to harvest made every minute. If you want to change this, you need to modify the `crontab` file following the [cron syntax](https://crontab.guru/#*_*_*_*_*), and rebuild/relaunch the image (it take less time, because you only modify one file, no need to recompile).
+
+
+b) Same thing, but using a *named volume*, a more portable way to share data between docker container, but it lacks some features on permissions to correctly export data.
+
+Create a named volume, independent from filesystem
+
+```bash
+docker volume create --name myDataVolume
+docker volume ls
+```
+
+Mount the volume : 
+
+```bash
+docker run --mount type=volume,source=myDataVolume,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscrap
+```
+
+Export data  : 
+
+- Using a `alpine` image, we mount the named volume (`myDataVolume`) to a `/alpine_data` folder inside the `alpine` container.
+
+- Then, we create a new folder inside the `alpine` container named `/alpine_backup`.
+
+- We then create an archive containing the contents of the `/alpine_data` folder and we store it inside the `/alpine_backup` folder (inside the container).
+
+- We also mount the `/alpine_backup` folder from the container to the docker host (your local machine) in a folder named `/local_backup` inside the current directory.
+
+
+```docker run --rm -v myDataVolume:/alpine_data -v $(pwd)/local_backup:/alpine_backup alpine:latest tar cvf /alpine_backup/scrap_data_"$(date '+%y-%m-%d')".tar /alpine_data```
+
+```{r, message=FALSE}
+remDr$close()
+```
+
+
 
