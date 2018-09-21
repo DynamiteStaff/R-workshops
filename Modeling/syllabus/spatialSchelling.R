@@ -1,12 +1,13 @@
 library(sf)
 library(ggplot2)
 library(dplyr)
-
+library(RColorBrewer)
 
 
 load("cityTractsWithPopAndVacancy.RData")
 
-mytoronto <-  toronto_tr
+mytoronto <-  na.omit(toronto_tr)
+tractIDS <-  unique(mytoronto$GeoUID)
 
 ptor  <-  ggplot(mytoronto) +
   geom_sf()
@@ -21,49 +22,95 @@ pctList %>%  sum
 
 
 
-tractIDS <-  unique(mytoronto$GeoUID)
-nbTracts <-  length(tractIDS)
-
 popSize <-  10000
 
 
-
-
-
-
-
-tractgroupPopValues <- sample(groupValues, size = tract$Households,replace = T, prob = pctList)
-
-
-tract <-  (mytoronto %>% filter(GeoUID=="5350102.02"))
-tract$popByGroup <- list(data.frame(pop=tract$Population * pctList, groupValue = groupValues  ))
-
-tract$popByGroup %>% 
+genSchellingTractState <-  function(popSize,  mytoronto){
+  tractIDS <-  unique(mytoronto$GeoUID)
+  popTotal <-  sum(mytoronto$Population)
   
+  #value are sampled according to percentage
+  value <- sample(groupValues, size = popSize,replace = T, prob = pctList)
   
-  isUnhappyInTract <-  function(tract, value , tolerance){
-    
-    
-    
-    return()
+  # localisation is sample according to tracts populations
+  localisation <-  sample(tractIDS, size= popSize , replace = T , prob= mytoronto$Population / popTotal )
+  ID <-  seq.int(popSize)
+  happy <-  NA
+
+  res <- data.frame(ID,localisation,value, happy)
+return(res)
   }
 
 
-moveOne <- function(tor,tractFromID, tractToID){
+s <-  genSchellingTractState(10000,mytoronto)
+
+
+isHappyInTract <-  function (ID, state, tolerance){
+  hhLoc <-  state[ID,"localisation"]
+  hhValue <-  state[ID, "value"]
   
-  toto <-  tor %>% filter(GeoUID == tractFromID)
-  frfr <-  tor %>%  filter(GeoUID == tractToID)
+  neigh <-  state %>%  filter(localisation == hhLoc) 
   
-  
-  
-  
-  
-  return(tor)
+  numberOfDiff <-sum(hhValue!=neigh$value, na.rm = T)  
+  happy <-  (numberOfDiff / nrow(neigh) ) < tolerance
+  return(happy)  
+}
+
+tolerance <-  0.3
+
+updateHappiness <- function(state, tolerance){
+  state$happy <-  sapply(state$ID, FUN = isHappyInTract, state=state, tolerance = 0.3)
+  return(state)
 }
 
 
-isHappybyTract <-  function(tract, )
+getUnhappy <-  function(state){
+  return(filter(state, !happy))
+}
+
+
+
+
+moveOne <-  function(state, tolerance, tractIDS){
+  #take one unhappy householder 
+  unhappyHHs <-  getUnhappy(state)
+  uhhhID <- sample_n(unhappyHHs$ID, 1)
+  oneTract <-  sample_n(tractIDS, 1)
   
   
+  #State is now the localtion of householders,  so the localisation change
   
-  
+    state[uhhhID,"localisation"] <-  oneTract
+    #origin cell is no longer happy or unhappy since it's empty
+  state[uhhhID,"happy"] <- NA
+  state <-  updateHappiness(state, tolerance )
+  return(state)
+}
+
+
+
+
+simulate <-  function(steps, state, tolerance){
+  for (i in 1:steps){
+    if (i %% 200 ==0) {
+      cat("step : ", i , "\n")
+    }
+    unhappy <-  getUnhappy(state)
+    if (nrow(unhappy) == 0){
+      cat("Everybody is fine with their location\n")
+      break 
+    }
+    state <- moveOne(state,tolerance)
+  }
+  return(state)
+}
+
+
+
+
+
+
+
+
+
+

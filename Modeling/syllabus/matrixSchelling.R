@@ -384,29 +384,6 @@ theilMano(sHomogen)
 
 
 
-desiredMean <- 7
-desiredSd <- 75
-location <- log(desiredMean^2 / sqrt(desiredSd^2 + desiredMean^2))
-shape <- sqrt(log(1 + (desiredSd^2 / desiredMean^2)))
-cat(paste("location:", location))
-cat(paste("shape:", shape))
-
-lognormalDraws <- rlnorm(n=10000, location, shape)
-
-plot(density(lognormalDraws))
-
-
-
-
-library(fitdistrplus)
-
-names(df)
-
-
-
-lognormsampling 
-
-
 
 
 
