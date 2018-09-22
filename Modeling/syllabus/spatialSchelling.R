@@ -8,6 +8,8 @@ load("cityTractsWithPopAndVacancy.RData")
 
 mytoronto <-  na.omit(toronto_tr)
 tractIDS <-  as.character(unique(mytoronto$GeoUID))
+mytoronto$popSchelling <-  NA
+
 
 ptor  <-  ggplot(mytoronto) +
   geom_sf()
@@ -50,6 +52,8 @@ isHappyInTract <-  function (ID, state, tolerance){
   
   neigh <-  state %>%  filter(localisation == hhLoc) 
   
+  
+    
   numberOfDiff <-sum(hhValue!=neigh$value, na.rm = T)  
   happy <-  (numberOfDiff / nrow(neigh) ) < tolerance
   return(happy)  
@@ -62,10 +66,9 @@ updateHappiness <- function(state, tolerance){
   return(state)
 }
 
-#only 2 tracts int he whole state are affected by househoulders movings 
+#only 2 tracts in the whole state are affected by househoulders movings 
 updateHappinessOftract <- function(tract, state, tolerance){
-  
-  state[state$localisation == tract,]$happy <-  sapply(state[state$localisation == tract,]$ID, FUN = isHappyInTract, state=state, tolerance = 0.3)
+    state[state$localisation == tract,]$happy <-  sapply(state[state$localisation == tract,]$ID, FUN = isHappyInTract, state=state, tolerance = 0.3)
   return(state)
 }
 
@@ -90,19 +93,13 @@ moveOne <-  function(state, tolerance, tractIDS){
   uhhhID <- sample(unhappyHHs$ID, 1)
   destiTract <-  sample(tractIDS, 1)
   origTract <-  state[uhhhID,"localisation"]
-  
 
-  
-  #cat("ORIGIN: ", origTract ,"\n")
-  #cat("DESTINATION: " , destiTract, "\n")
-  
-  
-#the localisation change
-state[uhhhID,"localisation"] <-  destiTract
+  #the localisation change
+  state[uhhhID,"localisation"] <-  destiTract
    
   
-    state <-  updateHappinessOftract(origTract,state, tolerance )
-     state <-  updateHappinessOftract(destiTract,state, tolerance )
+  state <-  updateHappinessOftract(origTract,state, tolerance )
+   state <-  updateHappinessOftract(destiTract,state, tolerance )
     
   #state <-  updateHappiness(state,tolerance)
   if(isHappyInTract(uhhhID,state, tolerance)){
@@ -130,7 +127,13 @@ simulate <-  function(steps, state, tolerance){
   return(state)
 }
 
+#setup function
 
+setupState <-  function(popSize, mytoronto){
+  s <-  genSchellingTractState(10000,mytoronto)
+  s <- updateHappiness(s,tolerance )
+  return(s)  
+}
 
 tolerance <-  0.3
 s <-  genSchellingTractState(10000,mytoronto)
@@ -154,15 +157,28 @@ theilEntropyBytract <-  function(tract,state){
 }
 
 
+theilEntropy <-  function(state){
+  return(ineq(state$value, type = "Theil", na.rm = T))
+}
  
 
 mytoronto$pctUnhappy <- sapply(tractIDS, FUN = pctUnHappybyTract, state=s )
 mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state=s )  
 
 
+updateTractPop <-  function(tract, state){
+  return(nrow(state[state$localisation==tract,  ]) )
+}
+
+
 updateMeasures <-  function(mytoronto, currentState){
   mytoronto$pctUnhappy <- sapply(tractIDS, FUN = pctUnHappybyTract, state=currentState )
   mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state=currentState )  
+  theilE <- theilEntropy(currentState)
+  popTot <-  nrow(currentState)
+  mytoronto$popSchelling <- sapply(tractIDS, FUN= updateTractPop, state=currentState)
+  grouppedState <-  currentState %>%  group_by(factor(localisation)) %>%  tally()
+  mytoronto$theilGap <- mytoronto$popSchelling*(theilE - mytoronto$theil) / (theilE * popTot)
 return(mytoronto)
 }
 
@@ -178,11 +194,20 @@ displayPctUnhappy <-  function(mytoronto, state){
     geom_sf(aes(fill=pctUnhappy))
   return(ptor)
 }
+displayTheilGap <-  function(mytoronto, state){
+  mytoronto <-  updateMeasures(mytoronto, state)
+  ptor  <-  ggplot(mytoronto) +
+    geom_sf(aes(fill=theilGap))+
+    scale_fill_gradient2()
+  return(ptor)
+}
 
 
-
-displayTheil(mytoronto , s)
+s <-  setupState(100000,mytoronto)
+nrow(getUnhappy(s))
 displayPctUnhappy(mytoronto,s)
 s <-  simulate(1000,s, tolerance)
 nrow(getUnhappy(s))
 displayPctUnhappy(mytoronto,s)
+displayTheilGap(mytoronto,s)
+
