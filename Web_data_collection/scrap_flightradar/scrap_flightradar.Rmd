@@ -16,6 +16,7 @@ library(plyr)
 library(dplyr)
 library(jsonlite)
 library(lubridate)
+library(RSelenium)
 ```
 
 # Scrape all departures or arrivals from FlightRadar website
@@ -48,22 +49,33 @@ devtools::install_github("ropensci/RSelenium")
 ```
 Depending of your existing configuration and OS you probably need to install some dependent software packages.
 
-```{r, message=FALSE}
-library(RSelenium)
-```
-
 It's possible to use directly Selenium with your browser, but we prefer to use directly a server version. Why ? Because using server version of Selenium, you have the possibility a) to sent command on local or remote server running Selenium b) which run a different browsers and/or OS, c) to distribute tests over multiple machines.
 
 Selenium is a fast moving project, and some release are really buggy, so try to choose a stable version, and don't deseperate.
 
 ### Run a Selenium server
 
-Install Docker on your OS using docker documentation. 
+Install Docker on your OS using docker documentation at the bottom of this document. 
 
-When it's done, `pull and run` [one of](https://github.com/SeleniumHQ/docker-selenium) Docker Selenium-Server image using terminal. For this tutorial we use Firefox !
+When it's done, we `pull and run` [one of](https://github.com/SeleniumHQ/docker-selenium) Docker Selenium-Server image using terminal. For this tutorial we use Firefox !
+
+In classic context (good internet connection), we pull images directly from Docker Hub server.
 
 ```bash
-sudo docker run --name selenium -d -p 4445:4444 selenium/standalone-firefox:3.14.0-arsenic
+sudo docker pull selenium/standalone-firefox:3.14.0-arsenic
+```
+
+**But, because the image is heavy in size (1GO for the two images used in this tutorial)**, we prefer to directly load the image given by USB key by your teachers. Open a terminal on the folder where located the images.
+
+```bash
+sudo docker load --input=r-alpine.tar
+sudo docker load --input=rSelenium.tar
+```
+
+Create the Selenium container :
+
+```bash
+sudo docker run --shm-size=2g --name selenium -d -p 4445:4444 selenium/standalone-firefox:3.14.0-arsenic
 ```
 
 Type `sudo docker ps` to see if server correctly run and listen to port 4445.
@@ -257,6 +269,7 @@ while( nbElements > 0)
    nbElements <- length(loadmorebutton)
 }
 
+remDr$errorDetails()$message
 
 ```
 
@@ -387,12 +400,51 @@ There are three big step to understand in container lifecycle:
 
 ### Linux way
 
+**DOCKER installation**
+
+On linux Ubuntu, you found documentation [here](https://docs.docker.com/install/linux/docker-ce/ubuntu/). First step, install the key and repository. 
+
+```bash
+sudo apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    software-properties-common
+```
+
+Add key and repository : 
+
+```bash
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+
+sudo apt-get update
+```
+
+Install docker-ce :
+
+```bash
+sudo apt-get install docker-ce
+```
+
 **PREPARE image**
 
-Open your linux terminal.
-Go to `docker-scripts` folder into the folder which contain this tutorial on your disk.
+Copy the folder `docker-images` on the USB Key (ask teachers) into the `scrap-flightradar` folder of this tutorial. 
+
+Now, go to this folder using terminal command (`cd pathofthefolder`), and load the two images on your system.
+
+```bash
+sudo docker load --input=r-alpine.tar
+sudo docker load --input=rSelenium.tar
+```
 
 **BUILD image**
+
+Go to `docker-scripts` folder into the folder which contain this tutorial on your disk.
 
 The building of this image take lot of times (ten minutes), this is due to the huge dplyr library. Run the `docker build` command in the folder which contain the `Dockerfile` description of the image.
 
@@ -447,9 +499,80 @@ Export data  :
 
 ```docker run --rm -v myDataVolume:/alpine_data -v $(pwd)/local_backup:/alpine_backup alpine:latest tar cvf /alpine_backup/scrap_data_"$(date '+%y-%m-%d')".tar /alpine_data```
 
+
+### Windows way
+
+Thre are two way to install Docker for windows, a new way (https://docs.docker.com/docker-for-windows/install/) and an old way. For this tutorial we use the the old way due to better compatibility.
+
+Install Docker Tools for windows using the `DockerToolbox.exe` file. You could find the official documenation is available [here]( https://docs.docker.com/toolbox/toolbox_install_windows/)
+
+<img src='images/SetupDockerToolbox.jpg'/>
+
+After that you could launch Docker quickstart terminal directly after installation or using the icon in start menu. 
+
+<img src='images/DockerQuickstartTerminal.jpg'/>
+
+Docker first download an iso, and after that test if your system is ready to run containers. If you see an error like this, you need to run another step. 
+
+<img src='images/DockerQuickstartTerminalPreCheck.jpg'/>
+
+Restart your computer, and try to activate an option in the BIOS (Del key during initialization of your computer) probably named "Vanderpool technology" or "VT-X technology" or "Virtualization technology". Save and restart. Some pictore for UEFI Bios on HP, DELL, ASUS motherboard/systems.
+
+*Asus*
+
+<img src='images/intel-virtualization-technology.jpg'/>
+
+*Dell* 
+
+<img src='images/inter-virtualization-technology-Dell.png'/>
+
+*HP*
+
+<img src='images/inter-virtualization-technology-HP.jpg'/>
+
+**PREPARE image**
+
+Copy `docker-scripts` and `docker-images` folders into `c:\Program Files\Docker Toolbox`
+
+<img src='images/FolderDockerToolbox.jpg'>
+
+After that, into Terminal of Docker Toolbox you see this folders.
+
+<img src='images/lsOnDOockerWindows.jpg'>
+
+Go to `docker-images` folder using `cd` command, and load the two images :
+
+```bash
+docker load --input=r-alpine.tar
+docker load --input=rSelenium.tar
+```
+
+<img src='images/loadImagesDocker.jpg'>
+
+**BUILD image**
+
+Go to `docker-scripts` folder into the folder which contain this tutorial on your disk.
+
+The building of this image take lot of times (ten minutes), this is due to the huge dplyr library. Run the `docker build` command in the folder which contain the `Dockerfile` description of the image.
+
+```bash
+docker build . --tag=rflightscraps
+```
+
+**LAUNCH IMAGE**
+
+We use a **binded volume**, this is the easiest way actually. 
+
+
+First, create a new folder named `localbackup` into your users folder on windows : `C:\Users\yourname` 
+After that, change the path by yours in this command and run it.
+
+```bash
+docker run --name rflightscraps -d -e UID=1000 -e GID=1000 --mount type=bind,source=/c/Users/reyse/localbackup,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscraps --name rflightscraps 
+```
+
+The end, close the session !
+
 ```{r, message=FALSE}
 remDr$close()
 ```
-
-
-
