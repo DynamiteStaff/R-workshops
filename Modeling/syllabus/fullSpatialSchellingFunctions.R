@@ -15,11 +15,6 @@ vacancypct <-0.03
 mytoronto$emptyHouseholds <-   round(vacancypct   * mytoronto$Households)
 
 
-ptor  <-  ggplot(mytoronto) +
-  geom_sf()
-ptor
-
-
 nbgroups <-  4
 groupValues <-  seq.int(from = 1, to=nbgroups)
 colorMapping <-  brewer.pal(nbgroups,"Dark2")
@@ -42,13 +37,11 @@ genSchellingTractState <-  function(popSize,  mytoronto, vacancypct){
   localisation <-  as.character(sample(tractIDS, size= popSize , replace = T , prob= mytoronto$Population / popTotal ))
   ID <-  seq.int(popSize)
   happy <-  NA
-
+  
   res <- data.frame(ID,localisation,value, happy, stringsAsFactors = F)
-return(res)
-  }
+  return(res)
+}
 
-
-s <-  genSchellingTractState(10000,mytoronto, vacancypct)
 
 isHappyInTract <-  function (ID, state, tolerance){
   hhLoc <-  state[ID,"localisation"]
@@ -57,13 +50,12 @@ isHappyInTract <-  function (ID, state, tolerance){
   neigh <-  state %>%  filter(localisation == hhLoc) 
   
   
-    
+  
   numberOfDiff <-sum(hhValue!=neigh$value, na.rm = T)  
   happy <-  (numberOfDiff / nrow(neigh) ) < tolerance
   return(happy)  
 }
 
-tolerance <-  0.3
 
 updateHappiness <- function(state, tolerance){
   state$happy <-  sapply(state$ID, FUN = isHappyInTract, state=state, tolerance = 0.3)
@@ -72,7 +64,7 @@ updateHappiness <- function(state, tolerance){
 
 #only 2 tracts in the whole state are affected by househoulders movings 
 updateHappinessOftract <- function(tract, state, tolerance){
-    state[state$localisation == tract,]$happy <-  sapply(state[state$localisation == tract,]$ID, FUN = isHappyInTract, state=state, tolerance = 0.3)
+  state[state$localisation == tract,]$happy <-  sapply(state[state$localisation == tract,]$ID, FUN = isHappyInTract, state=state, tolerance = 0.3)
   return(state)
 }
 
@@ -91,8 +83,8 @@ moveOne <-  function(state, tolerance, mytoronto){
     cat("evryone happy \n")
     return(state)
   }
-    
-    #take one unhappy householder 
+  
+  #take one unhappy householder 
   unhappyHHs <-  getUnhappy(state)
   uhhhID <- sample(unhappyHHs$ID, 1)
   
@@ -102,8 +94,8 @@ moveOne <-  function(state, tolerance, mytoronto){
   
   
   origTract <-  state[uhhhID,"localisation"]
-
-
+  
+  
   #the localisation change
   state[uhhhID,"localisation"] <-  destiTract
   #number of empty housholds have to be updated
@@ -114,9 +106,9 @@ moveOne <-  function(state, tolerance, mytoronto){
   #happiness update in concerned tracts
   state <-  updateHappinessOftract(origTract,state, tolerance )
   state <-  updateHappinessOftract(destiTract,state, tolerance )
-
-    
-      return(state)
+  
+  
+  return(state)
 }
 
 
@@ -145,7 +137,7 @@ simulate <-  function(steps, state, tolerance, mytoronto, logMeasures=F){
     }
     cat(nrow(getUnhappy(state)), "\n")
     
-      }
+  }
   return(state)
 }
 
@@ -155,7 +147,7 @@ setupState <-  function(popSize, mytoronto, vacancypct){
   s <-  genSchellingTractState(10000,mytoronto,vacancypct)
   s <- updateHappiness(s,tolerance )
   mytoronto <-  updateMeasuresToronto(mytoronto)
-    return(s)  
+  return(s)  
 }
 
 
@@ -168,25 +160,8 @@ resetAccumulators <-  function(){
   stepsACC <<-  c()
   NbunhappyAcc <<-  c()
   absTheilGapSumAcc <<-  c()
-  
 }
 
-tolerance <-  0.3
-s <-  genSchellingTractState(10000,mytoronto, vacancypct)
-s <- updateHappiness(s,tolerance )
-mytoronto <-  updateMeasuresToronto(mytoronto,s)
-nrow(getUnhappy(s))
-sum(mytoronto$emptyHouseholds)
-s <-  simulate(200,s, tolerance, mytoronto, logMeasures = T)
-nrow(getUnhappy(s))
-sum(mytoronto$emptyHouseholds)
-
-plot(stepsACC, NbunhappyAcc)
-
-
-mytoronto$theilGap
-
-#measures 
 
 
 pctUnHappybyTract <-  function(tract, state){
@@ -203,10 +178,8 @@ theilEntropyBytract <-  function(tract,state){
 theilEntropy <-  function(state){
   return(ineq(state$value, type = "Theil", na.rm = T))
 }
- 
 
-mytoronto$pctUnhappy <- sapply(tractIDS, FUN = pctUnHappybyTract, state=s )
-mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state=s )  
+
 
 
 updateTractPop <-  function(tract, state){
@@ -219,7 +192,7 @@ updateMeasuresToronto <-  function(mytoronto, currentState){
   mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state=currentState )  
   theilE <- theilEntropy(currentState)
   mytoronto$theilGap <- theilE - mytoronto$theil
-return(mytoronto)
+  return(mytoronto)
 }
 
 displayTheil <-  function(mytoronto, state){

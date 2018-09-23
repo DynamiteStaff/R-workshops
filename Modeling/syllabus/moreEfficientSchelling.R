@@ -15,6 +15,8 @@ matrixSchellingState <-  function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pc
   matrixState[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
   return(matrixState)
 }
+
+
 matrixState <-  matrixSchellingState(40,0.5,0.5, 0.5)
 meltedState <- melt(matrixState, varnames = c("X","Y")) 
 head(meltedState,10)  #to see what it looks like and get the column names
@@ -241,10 +243,12 @@ simulate <-  function(steps, state, tolerance){
 rm(stateEnv)
 rm(s)
 s <- createMeltedSchellingState(30,pctOccupied = 0.8, tolerance=0.3)
-displayStateUnhappy(s, dotsize = 2)
+displayStateUnhappy(s, dotsize = 4)
 s<- simulate(2000,s, 0.3)
 cat(nrow(getUnhappy(s)))
-displayStateUnhappy(s, dotsize = 2)
+displayStateUnhappy(s, dotsize = 4)
+
+
 
 ############## extension for several groups
 
@@ -362,7 +366,7 @@ theilMano <-  function(state){
 
 
 
-# test on dumb examples
+# test measures on dumb examples
 
 pctListPerfectEqual <-  c(1,0,0,0)
 sPerfectEqual <-  createMultiGroupState(50, 0.8, pctListPerfectEqual,groupValues,tolerance = 0.3)
@@ -380,185 +384,20 @@ theilEntropy(sHomogen)
 theilMano(sHomogen)
 
 
-#######################################################
 
 
 
 
 
 
-load("cityTractsWithPopAndVacancy.RData")
 
-mytoronto <-  toronto_tr
 
 
 
-pointsPopTract <- st_sample(tract, length(popTract),type = "random")
 
-ptor  <-  ggplot(tract) +
-  geom_sf()
-ptor
 
 
 
-
-plot(tract)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-nbgroups <-  4
-groupValues <-  seq.int(from = 1, to=nbgroups)
-colorMapping <-  brewer.pal(nbgroups,"Dark2")
-pctList <- c(0.25, 0.3, 0.3, 0.15)
-pctList %>%  sum
-
-
-tractgroupPopValues <- sample(groupValues, size = tract$Households,replace = T, prob = pctList)
-
-
-tract <-  (mytoronto %>% filter(GeoUID=="5350102.02"))
-tract$popByGroup <- list(data.frame(pop=tract$Population * pctList, groupValue = groupValues  ))
-
-tract$popByGroup %>% 
-
-
-isUnhappyInTract <-  function(tract, value , tolerance){
-    
-  
-  
-  return()
-}
-
-
-moveOne <- function(tor,tractFromID, tractToID){
-  
-  toto <-  tor %>% filter(GeoUID == tractFromID)
-  frfr <-  tor %>%  filter(GeoUID == tractToID)
-  
-  
-  
-  
-  
-  return(tor)
-}
-
-
-isHappybyTract <-  function(tract, )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ptor <- ptor + geom_sf(data=pointsPopTract)
-ptor
-st_sample()
-
-
-sf::st_multipoint()
-
-plot(toronto_tr)
-
-str(toronto_tr)
-
-gg
-
-
-# shinyApp(
-#   ui = fluidPage(
-#     actionButton("go", "one step"),
-#     actionButton("go100", "100 step"),
-#     
-#     plotOutput("plot")
-#   ),
-#   
-#   server = function(input, output) {
-#     tolerance <-  0.3
-#     
-#     state <-createMeltedSchellingState(20, 0.8, 0.5, 0.5,tolerance)  
-#     currentState <-  reactiveValues()
-#     
-#     observeEvent(input$go, {
-#       currentState$data <- step(state,tolerance)
-#     })
-#     observeEvent(input$go100, {
-#       currentState$data <-  simulate(100, state, tolerance)
-#     })
-#     
-#     
-#     
-#     output$plot <- renderPlot({
-#       currentplot <-  displayStateUnhappy(currentState())
-#       currentplot
-#     })  }
-#   ,
-#   options = list(height = 500)
-# )
-
-
-
-
-#Duncan segregation index
-
-nG1 <-  stateEnv %>% filter(value==1) %>%  nrow 
-nG2 <-  stateEnv %>% filter(value==2) %>%  nrow 
-
-mysum <- 0
-for (cellIterator in stateEnv$ID){
-  currentcellvalue <-  stateEnv$value[stateEnv$ID == cellIterator]
-  if( !is.na(currentcellvalue)){
-    mysum <- mysum + abs( ifelse(currentcellvalue==1  , 1/nG1, 1/nG2)) 
-  }
-}
-myDSI <-  mysum * 0.5
 
 
 
