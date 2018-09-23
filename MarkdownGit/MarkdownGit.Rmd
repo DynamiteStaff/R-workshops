@@ -131,6 +131,36 @@ outputs
  create mode 100644 my_file.txt
 ```
 
+In order to host this project on Github, we need: 
+
+- first to create a remote repository on Github ; to do so we create a new project on Github, name it anyway you want, but to keep it simple you mway choose the same name as your local repo (let the 'add README' checkbox unchecked)
+
+- before we can _push_ the content of our local repository to the distant repository we need [to indicate to our local git the location of the distant repository (remote)](https://help.github.com/articles/adding-a-remote/)
+
+```bash
+git remote add origin <your distant repository name>
+```
+
+Now you can push your master branch to it
+
+```bash
+git push
+```
+
+which should produce the following ouput
+```verbatim
+Counting objects: 3, done.
+Writing objects: 100% (3/3), 238 bytes | 0 bytes/s, done.
+Total 3 (delta 0), reused 0 (delta 0)
+remote: 
+remote: Create a pull request for 'master' on GitHub by visiting:
+remote:      https://github.com/zantor/gituto/pull/new/master
+remote: 
+To https://github.com/zantor/gituto.git
+ * [new branch]      master -> master
+Branch master set up to track remote branch master from origin.
+```
+
 Next steps: 
 - [Git reference documentation](https://git-scm.com/doc)
 - [a (graphical/interactive and excellent) git cheatsheet](http://ndpsoftware.com/git-cheatsheet.html)

@@ -246,6 +246,25 @@ Changes to be committed:
 <pre class="verbatim"><code>[master (root-commit) 91e47d0] initial commit
  1 file changed, 1 insertion(+)
  create mode 100644 my_file.txt</code></pre>
+<p>In order to host this project on Github, we need:</p>
+<ul>
+<li><p>first to create a remote repository on Github ; to do so we create a new project on Github, name it anyway you want, but to keep it simple you mway choose the same name as your local repo (let the ‘add README’ checkbox unchecked)</p></li>
+<li><p>before we can <em>push</em> the content of our local repository to the distant repository we need <a href="https://help.github.com/articles/adding-a-remote/">to indicate to our local git the location of the distant repository (remote)</a></p></li>
+</ul>
+<pre class="bash"><code>git remote add origin &lt;your distant repository name&gt;</code></pre>
+<p>Now you can push your master branch to it</p>
+<pre class="bash"><code>git push</code></pre>
+<p>which should produce the following ouput</p>
+<pre class="verbatim"><code>Counting objects: 3, done.
+Writing objects: 100% (3/3), 238 bytes | 0 bytes/s, done.
+Total 3 (delta 0), reused 0 (delta 0)
+remote: 
+remote: Create a pull request for 'master' on GitHub by visiting:
+remote:      https://github.com/zantor/gituto/pull/new/master
+remote: 
+To https://github.com/zantor/gituto.git
+ * [new branch]      master -&gt; master
+Branch master set up to track remote branch master from origin.</code></pre>
 <p>Next steps: - <a href="https://git-scm.com/doc">Git reference documentation</a> - <a href="http://ndpsoftware.com/git-cheatsheet.html">a (graphical/interactive and excellent) git cheatsheet</a> - <a href="https://sdlambert.github.io/2015/04/09/git-workflow-for-solo-development/">A workflow for single-user projects</a></p>
 </div>
 </div>
