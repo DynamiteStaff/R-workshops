@@ -1,0 +1,184 @@
+## R-markdown / notebooks
+
+### why mixing experiments description, code, outputs, and analysis of results?
+A typical single-person workflow for empirical science:
+
+ 1) ask questions and draw hypothesis
+ 2) collect empirical data to adress these questions
+ 3) perform data analysis, elaborate and test models
+ 4) analyze and discuss the results ; report
+ 5) back to 1
+
+Steps 1 and 4 imply writing plain-text while steps 2 and 3 imply writing code to operate on data. This traditionnaly implied using different tools, a text editor/document processor (MS Word, Textpad/Vi/Emacs/etc.) and developement tools (such as a text-editor+R-console, or R-studio). While mixing code, figures, tables, narrative etc. in notebooks has some drawbacks it has numerous advantages:
+
+- it favors _communicability_, _transparency_ and _reproductibility_ of your work and results: it's way easier for someone else to reproduce your results, modify/extend your research, etc.
+- Markdown is a very light syntax, easy to learn, that is both human and computer-readable
+- thanks to a 2-steps compilation (behind the scenes: first translate the R-mardown document in pure markdown with knit, then with pandoc transform the markdown document in another formatted document), one can produce documents in a large variety of formats from a single document.
+
+
+When doing exploratory data analysis it's very convenient to work in a single document where you can mix narrative to describe your experiments / assumptions, how they relate to litterature, analysis of results and discussion, all with code, tables and figures. It is similar to a [_laboratory notebook_](https://colinpurrington.com/tips/lab-notebooks) in which you carefully keep track of the progress of your work. For auxiliary/technical code, you may encapsulate it in functions and possibly put these functions in a separate file, and load this script in your notebook.
+
+### Basic syntax
+
+- [Here the basic syntax](https://rmarkdown.rstudio.com/authoring_basics.html)
+- [Here is a cheatsheet](https://guides.github.com/pdfs/markdown-cheatsheet-online.pdf)
+- [Here is a recap of the important options for code chunks](https://yihui.name/knitr/options/)
+
+
+#### Exercise
+
+- try: _File>New File>R Markdown..._ and try the different document formats
+
+- starting from a R-markdown document template: add a piece of text followed by a figure giving the volume as a function of the circumference for different trees; change the code chunks options to produce successive reports in which appear/not appear: 
+
+- the code producing the figure
+- the figure itself
+
+- in a first code chunk declare a variable and affect a value to it ; in a following code chunk change the variable value ; in a third one print the variable's value
+  - tweak the chunks options to produce two different reports in which the printed value is different
+
+### Ressources
+
+- [On the advantages of using R-markdown for reproductible workflows](http://predictiveecology.org/2016/10/21/Rmarkdown-science-workflow.html)
+- [Maintaining a laboratory notebook](https://colinpurrington.com/tips/lab-notebooks)
+- [A Markdown cheatsheet](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet)
+- [The chapter devoted to R-Markdown in Hadley Wickham's book "R for Data Science"](http://r4ds.had.co.nz/r-markdown.html)
+- [Tips and tricks for working with images and figures in R-markdown documents](https://www.zevross.com/blog/2017/06/19/tips-and-tricks-for-working-with-images-and-figures-in-r-markdown-documents/)
+
+
+## Git
+
+### why version control systems?
+
+- what they are made for?
+  - single-user projects -- overkill?
+    - recording the entire history of your project -- possiblity to backtrack at any significative (i.e. commited) point in time without having to manually deal with different files corresponding to different versions of a single document
+    - testing things whose you're not sure they'll work (through branches --> more advanced level)
+    - (more here)[https://softwareengineering.stackexchange.com/questions/69308/git-for-personal-one-man-projects-overkill]
+  
+  - collaborative projects+++
+    - git among other VCS: _decentralized_?
+    
+- (Git beginner tutorial online)[http://man7.org/linux/man-pages/man7/gittutorial.7.html]
+
+There are a number of simple notions to understand how git manages to keep a history of your project. First, three different "areas" should be distiinguished (we'll add a fourth one later): 
+
+![](./figs/caci5.png)
+
+- your (local) project directory, also called the **workspace** -- it's said local because it's located in the computer you're currently working on
+- your project's **local repository**, this is where git stores the history of your project, its successive versions, etc. physically (if you wonder how git stores this in file) this repository is located in the (hidden) folder `.git`
+- the **index** (or staging area), you can see it as a transit/buffer zone between your working directory (where you work on files, modify them, create or delete them) and the local repository. This is the index that keeps track of which files should be considered for the next commit (version) you want to record in the repository.
+
+![](./figs/areas.png)
+
+### first steps on a toy example
+
+create a project-folder
+```bash
+mkdir gituto
+cd gituto
+```
+
+initialize your local repository
+```bash 
+git init
+```
+From there, everything that happens in the file tree underneath is observed by git, tracked (if you want it), and successive versions are recorded in the repository (when you want it)
+
+
+```bash
+echo "first line in a first file" > my_file.txt
+git status
+```
+which produce
+```verbatim
+On branch master
+
+Initial commit
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+	my_file.txt
+
+nothing added to commit but untracked files present (use "git add" to track)
+```
+you have to explicitely "stage" the files that you want to be part of your commits with `git add`; that will add them to the index and changes willl be tracked and commited to the repository -- hence you can precisely control what's not versioned.
+
+```bash
+git add .
+git status
+```
+should produce
+```verbatim
+On branch master
+
+Initial commit
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+
+	new file:   my_file.txt
+```
+now you can commit this very first version of your toy project
+```bash
+git commit -m "initial commit"
+```
+outputs
+```verbatim
+[master (root-commit) 91e47d0] initial commit
+ 1 file changed, 1 insertion(+)
+ create mode 100644 my_file.txt
+```
+
+In order to host this project on Github, we need: 
+
+- first to create a remote repository on Github ; to do so we create a new project on Github, name it anyway you want, but to keep it simple you mway choose the same name as your local repo (let the 'add README' checkbox unchecked)
+
+- before we can _push_ the content of our local repository to the distant repository we need [to indicate to our local git the location of the distant repository (remote)](https://help.github.com/articles/adding-a-remote/)
+
+```bash
+git remote add origin <your distant repository name>
+```
+
+Now you can push your master branch to it
+
+```bash
+git push
+```
+
+which should produce the following ouput
+```verbatim
+Counting objects: 3, done.
+Writing objects: 100% (3/3), 238 bytes | 0 bytes/s, done.
+Total 3 (delta 0), reused 0 (delta 0)
+remote: 
+remote: Create a pull request for 'master' on GitHub by visiting:
+remote:      https://github.com/zantor/gituto/pull/new/master
+remote: 
+To https://github.com/zantor/gituto.git
+ * [new branch]      master -> master
+Branch master set up to track remote branch master from origin.
+```
+
+Next steps: 
+- [Git reference documentation](https://git-scm.com/doc)
+- [a (graphical/interactive and excellent) git cheatsheet](http://ndpsoftware.com/git-cheatsheet.html)
+- [A workflow for single-user projects](https://sdlambert.github.io/2015/04/09/git-workflow-for-solo-development/)
+
+## Git and Github and R inside R-studio
+
+- Github is project-hosting platform ; it makes your projects visible and sharable online
+- learn a current standard practice in the community
+- millions of projects/repositories, form industrial large-scale projects to single-person-toy-projects
+- super useful hub to collaborate to open-source projects
+- ...
+
+- Let's go together step-by-step through [this great tutorial by Jenny Brian](http://happygitwithr.com)
+
+### Ressources
+
+- [Github 'Hello world' tutorial](https://guides.github.com/activities/hello-world/) : this one shows you how to create a new project/repository directly on Github (hence remotely), and then work by going through a workflow that is conventionnal on Github (the classical fork-pull request-merge Github workflow), all this by working directly on Github
+
+- [Understanding the Github workflow](https://guides.github.com/introduction/flow/) : details graphically every steps on the aforementionned workflow. Remember while this one is very useful, with the same tools (git and Github platform) there exists many different possible workflows to collaborate
+
