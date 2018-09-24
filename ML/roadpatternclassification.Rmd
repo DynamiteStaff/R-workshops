@@ -13,9 +13,9 @@ knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 ```
 
-## Road Pattern dataset description
+## Introduction to the dataset
 
-The reference data-set used in this workshop come from [https://geo.nyu.edu/catalog/stanford-yk247bg4748](stanford geo laboratory); This source contains polygons of urban areas all over the world with population estimate derived from Landsat images. Urbans ares from North and Central America and from Europe and Russia with a population of more than 200 000 peoples were extracted from this data source. Lets start by loading some required libraries, the data and draw a little map. You may start anew r-markdown document or r-script to store your work and follow these first steps. 
+The reference data-set used in this workshop come from [stanford geo laboratory](https://geo.nyu.edu/catalog/stanford-yk247bg4748); This source contains polygons of urban areas all over the world with population estimate derived from Landsat images. Urbans ares from North and Central America and from Europe and Russia with a population of more than 200 000 peoples were extracted from this data source. Lets start by loading some required libraries, the data and draw a little map. You may start anew r-markdown document or r-script to store your work and follow these first steps. 
 
 ```{r cities,cache=TRUE,message=FALSE}
 # load some libraries
@@ -45,6 +45,7 @@ legendCirclesSymbols(pos = "topleft",
 These data were combined with the street networks extracted from open street map. This was perfomed using the [https://overpass-api.de/](overpass api) and the **osmdata** package for searching geographic entities with the **highway** tag with value equal to **primary,secondary,tertiary** or **residential**. This is for example the street network extracted for Pensacola and Seville :
 
 ```{r,cache=TRUE}
+# just some illustrative maps
 par(mfrow=c(1,2))
 roads_app = read_sf("UranAreas/Pensacola.geojson")
 plot(st_geometry(roads_app))
@@ -118,7 +119,8 @@ A classical first step in bulding a classifier is to split the dataset into a tr
 We then build a data frame Xp with three varibales :
 
 ```{r,cache=TRUE}
-entropie = -rowSums(df_Pa %>% select(-City)*log2(df_Pa %>% select(-City)))
+angle_probs= df_Pa %>% select(-City)
+entropie = -rowSums(angle_probs*log2(angle_probs))
 Xp = as.data.frame(df_cities) %>% select(Cont,Density) 
 Xp$entropie=entropie
 summary(Xp)
@@ -126,12 +128,14 @@ summary(Xp)
 The continent of the urban area (North America,Europe) which is the target feature and the two predictors. Then we may use the **createDataPartition** and **preProcess** functions from **caret** to split and normalize this dataset (normalization is important here for several methods since raw features have quite different ranges). Note that the mean and standard deviation used for scaling are computed on the train dataset only.
 
 ```{r,cache=TRUE}
+# give a bollean vector of 
 intrain  = createDataPartition(Xp$Cont, list=FALSE,p = 0.75)
-scaler = preProcess(Xp[intrain,-1])
-Xp.train = predict(scaler,Xp[intrain,-1])
-Xp.train$Cont=Xp$Cont[intrain]
-Xp.test  = predict(scaler,Xp[-intrain,-1])
-Xp.test$Cont=Xp$Cont[-intrain]
+# learn a scaler (mean and sd estimation) to normalize the data see ?preProcess
+scaler = preProcess(Xp[intrain,])
+# transform and select the train set
+Xp.train = predict(scaler,Xp[intrain,])
+# transform and select the test set
+Xp.test  = predict(scaler,Xp[-intrain,])
 ```
 
 We may get a first picture of this simple dataset using a scatter plot (since we restrict ourself to two predictors in this first part). Urban areas from North-America exhibit a lower density and an higher entropie. These variables may then be helpfull to distinguish these two classes. We will start by running two classical classifier namely **logistic regression** and **k-nn**.
@@ -149,10 +153,12 @@ We start with a simple logistic regression, which can easily be estimated in R t
 ```{r,cache=TRUE}
 # estimate the logistic regression parameters
 fit = glm(Cont~.,data=Xp.train,family = binomial)
-# reconstruct the prediction
+# reconstruct the prediction, with glm predict will return the probabilities of the 
+probabilities = predict(fit,Xp.train,type="response")
+# but we may convert to most probables labels manualy
 classes = levels(Xp.train$Cont)
-predlab.train = factor(classes[(predict(fit,Xp.train,type="response")>0.5)+1],levels = classes)
-# compute summary statistics on the train set
+predlab.train = factor(classes[(probabilities>0.5)+1],levels = classes)
+# and compute summary statistics on the train set
 mc.train = confusionMatrix(predlab.train,Xp.train$Cont)
 mc.train
 ```
@@ -258,7 +264,8 @@ ggplot(fitcv$results)+geom_line(aes(x=k,y=Accuracy))+
   geom_point(aes(x=k,y=Accuracy),fill="white",size=3,shape=21)
 ```
 
-Higher value of k seems to help a little bit to increase the perfomances. We may get a final vue of the performances on the test set of the chosen model:
+Higher value of k seems to help a little bit to increase the perfomances. You may look at the results of the crossvalidation by looking at the **fitcv$result** table by ourself which gives you also standard deviation for our generalisation performances.
+We may also get a final vue of the performances on the test set of the chosen model. This code will evaluate te performance of the best model on the test set.
 
 ```{r,cache=TRUE}
 predlab.test = predict(fitcv,Xp.test,type="raw")
@@ -266,7 +273,7 @@ mc.test = confusionMatrix(predlab.test,Xp.test$Cont)
 mc.test$overall[1]
 ```
 
-## Sumary 
+## Summary 
 
 What we have seen already :
 
@@ -274,14 +281,14 @@ What we have seen already :
 - normalize the data (**preProcess**)
 - fit a glm using all the features  (**glm,predict**)
 - fit a knn (**knn3, predict**)
-- choose the value of an hyper-parameter, with grid search and crossval (**expand.grid, trainControl, train, predict**)
+- choose the value of an hyper-parameter, with grid search and cross validation (**expand.grid, trainControl, train, predict**)
 
 ## Classification with raw features 
 We go now to the full feature set, lets load another version of the dataset, perform some cleaning and build the train and test sets.
 
 ```{r,cache=TRUE}
 # read and clean data
-cities = read_sf("../dynamit/shp/Cities2.shp") %>% filter(ang180!=0) %>% mutate(Cont=factor(Cont))
+cities = read_sf("./shp/Cities2.shp") %>% filter(ang180!=0) %>% mutate(Cont=factor(Cont))
 # the histogram for angles is symetric so remove the redundant features
 Xa=cities %>% st_set_geometry(NULL) %>% select(c(2:39,76:80))
 
@@ -319,13 +326,15 @@ mc.test$overall[1]
 We heave already tried a lot of thing together so lets try to respond to some more questions to see if your are fluent with caret now.
 
 ### Question 1
-Fit a k-nn on the complete data-set and tune k.
+Fit a k-nn on the complete data-set and tune k. You may 
 
 
 
 ### Question 2
 
-Help yourself in using caret to fit a cart tree (with **rpart**) and compute the model test accuracy. To get a visual explanation of this type of algorithm you may first spend some minutes with these [http://www.r2d3.us/visual-intro-to-machine-learning-part-1/](visuals tutorials (1)) and [http://www.r2d3.us/visual-intro-to-machine-learning-part-2/]((2)). you may visualize the structure of your final tree with the prp function of the rpart.plot package. To get the final model you may acces the finalModel slot of the list returned by the train function of caret. You may also use the function **varImp** on this type of model to get a score of importance for each variable (look at the doc).
+Help yourself in using caret to fit a cart tree (with **rpart**) and compute the model test accuracy. A list of available methods in caret is available [here](https://topepo.github.io/caret/train-models-by-tag.html) together with the name of their hyper-parameters that you must fix (by crossvalidation or other means). 
+
+To get a visual explanation of this type of algorithm you may first spend some minutes with these visual tutorials [http://www.r2d3.us/visual-intro-to-machine-learning-part-1/](http://www.r2d3.us/visual-intro-to-machine-learning-part-1/) and [http://www.r2d3.us/visual-intro-to-machine-learning-part-2/](http://www.r2d3.us/visual-intro-to-machine-learning-part-2/). you may visualize the structure of your final tree with the prp function of the rpart.plot package. To get the final model you may acces the finalModel slot of the list returned by the train function of caret. You may also use the function **varImp** on this type of model to get a score of importance for each variable (look at the doc).
 
 
 
@@ -435,7 +444,7 @@ We can now run the training, this may take some times since the gpu are not conf
 ```{r,cache=TRUE}
 # define batch size and number of epochs
 batch_size <- 100
-epochs <- 20
+epochs <- 25
 # fit
 # number of training samples
 train_samples <- train_image_array_gen$n
@@ -461,6 +470,12 @@ hist <- model %>% fit_generator(
 And loook at how it goes in terms of train/val accuracy and loss.
 ```{r,cache=TRUE}
 plot(hist)
+```
+
+In case of training problem or if it takes too long a trained cnn is available in the project directory. It was saved using this code blocks and ban be loaded with the command in comment.
+```{r,cache=TRUE}
+model %>% save_model_hdf5("cnn_uf.hdf5")
+#model = model_hdf5("cnn_uf.hdf5")
 ```
 
 
@@ -545,11 +560,7 @@ ml <- marrangeGrob(p, nrow=5, ncol=5,top="Test set sample results")
 ml
 ```
 
-In case of training problem or if it takes too long a trained cnn is available in the project directory.
-```{r,cache=TRUE}
-model %>% save_model_hdf5("cnn_uf.hdf5")
-#model = model_hdf5("cnn_uf.hdf5")
-```
+
 
 ### Question
 
