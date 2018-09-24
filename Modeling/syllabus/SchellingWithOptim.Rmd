@@ -563,7 +563,7 @@ Now we should increase the size of the state , simulate longer,  and observe the
 
 ```{r exp22, eval=FALSE}
 myExpTolerance <-  0.3
-s <-  createMeltedSchellingState(30,pctOccupied = 0.8,pctRed = 0.5, pctBlue = 0.5, tolerance= myExpTolerance)
+s <-  createMeltedSchellingState(40,pctOccupied = 0.8,pctRed = 0.5, pctBlue = 0.5, tolerance= myExpTolerance)
 displayStateUnhappy(s)
 nrow(getUnhappy(s))
 s <-  simulateFaster(steps= 800, state=s, tolerance = myExpTolerance)
