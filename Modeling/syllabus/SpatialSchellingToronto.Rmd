@@ -386,7 +386,7 @@ moveOne <-  function(state, tolerance, mytoronto){
 ```
 
 The `simulate ` function has also to be updated, since it calls `moveOne`.
-
+Therer is a lot of commented code , that is prepared for logging measures over time. We will add accumulators if we have time !
 
 ```{r simulateUpdate}
 simulate <-  function(steps, state, tolerance, mytoronto, logMeasures=F){
@@ -441,7 +441,7 @@ displayTheilGap(mytoronto,s)
 
 You can notice that the number of emptyhousholders remains constant (that's good) and the number of unhappy householders can decrease but also increase sometimes (that's normal : when someone turn unhappy in a tract, every person of the same group turns unhappy too! ).
 
-To follow its evolutions, we have to create some accumulators that will store measures alues along the simulation.
+To follow its evolutions, we have to create some accumulators that will store measures alues along the simulation. Maybe later, but the code in the `moveOne` function is ready to be uncommented to fille these accumulators. 
 
 ```{r accu}
 
