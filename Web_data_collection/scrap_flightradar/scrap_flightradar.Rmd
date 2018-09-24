@@ -500,11 +500,12 @@ Export data  :
 ```docker run --rm -v myDataVolume:/alpine_data -v $(pwd)/local_backup:/alpine_backup alpine:latest tar cvf /alpine_backup/scrap_data_"$(date '+%y-%m-%d')".tar /alpine_data```
 
 
-### Windows way
 
-Thre are two way to install Docker for windows, a new way (https://docs.docker.com/docker-for-windows/install/) and an old way. For this tutorial we use the the old way due to better compatibility.
+### Windows and Mac way
 
-Install Docker Tools for windows using the `DockerToolbox.exe` file. You could find the official documenation is available [here]( https://docs.docker.com/toolbox/toolbox_install_windows/)
+Thre are two way to install Docker for Windows and Mac, a new way [Windows](https://docs.docker.com/docker-for-windows/) / [Mac](https://docs.docker.com/docker-for-mac/) and an old way. For this tutorial we use the the old way due to better compatibility.
+
+Install Docker Tools for windows using the `DockerToolbox.exe` (or `.dmg` for mac) file. You could find the official documentation is available here [Windows]( https://docs.docker.com/toolbox/toolbox_install_windows/) and [Mac]()https://docs.docker.com/toolbox/toolbox_install_mac/
 
 <img src='images/SetupDockerToolbox.jpg'/>
 
