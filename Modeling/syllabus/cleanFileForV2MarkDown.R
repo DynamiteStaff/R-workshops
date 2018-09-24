@@ -1,42 +1,40 @@
----
-title: "Massive Spatial Data modelling - Part 1"
-author: "Paul Chapron & Clémentine Cottineau"
-date: "23/09/2018"
-output: html_document
----
+setwd("~/Documents/R-workshops/Modeling/syllabus")
 
-### Case study: urban segregation with scraped AirBnB data (from inside AirBnb or scrape it yourself)
+load("cityTractsWithPopAndVacancy.RData")
 
-After loading packages...
-```{r setup, eval=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 
+library(githubinstall)
 library(rmapzen)
 library(leaflet)
 library(hrbrthemes)
 library(devtools)
+library(ggplot2)
 library(ggrepel)
+library(sp)
 library(sf)
 library(cancensus)
 library(RColorBrewer)
 library(data.table)
 library(reshape2)
-library(ggplot2)
 library(scales)
 library(rgdal)
 library(Hmisc)
 library(rgeos)
 library(geosphere)
 library(gridExtra)
+
+
+#library(segregation)
+#library(seg)
+#devtools::install_github("profrichharris/MLID")
+library(devtools)
+install_github("mountainMath/cancensusHelpers")
 library(cancensusHelpers)
+#library(MLID)
+
 
 options(cancensus.api_key = "CensusMapper_5d949dee7f3e2546720b77d6ef08072e")
 
-```
-
-... define the fixed parameters you will need on this tutorial.
-For example, we choose to work on three Canadian cities with census data, so we set here the id they have in the census, the coordinates of the city halls, the variable names/codes of visible minorities as well as some elements of size etc
-```{r fixedCodes}
 #Code for CSD in census
 ct <-  "35535"
 cm  <-  "24462"
@@ -56,36 +54,19 @@ chm  <-  c(-73.7171664, 45.4726094)
 bdtv <- 10000
 bdm <-  12000
 
-#Files from inside airbnb
 f  <-  list.files('insideairbnb/')
 
-## Identifying the vectors for visible Minority status
-parent_vector <- "v_CA16_3954"
-minorities <- list_census_vectors("CA16") %>% 
-  filter(vector == "v_CA16_3954") %>% 
-  child_census_vectors(leaves_only = TRUE) %>% 
-  pull(vector)
+mont <- read.csv(paste0('insideairbnb/', f[1]))
+toro <- read.csv(paste0('insideairbnb/', f[2]))
+vanc <- read.csv(paste0('insideairbnb/', f[3]))
 
-minority_vectors <- c(parent_vector, minorities)
-lab  <-  as.data.frame (list_census_vectors('CA16') %>% 
-                       filter(vector %in% minorities) %>% 
-                       select(vector, label))
+toronto  <-  unique(toro$city)
+vancouver <-  unique(vanc$city)
+montreal  <-  unique(mont$city)
 
-```
+df <-  rbind(mont, toro, vanc)
 
 
-We go on to the loading of pre-downloaded files from the website inside airbnb, and pull them together in a single table.
-```{r importFiles}
-montrealAirbnb <- read.csv(paste0('insideairbnb/', f[1]))
-torontoAirbnb <- read.csv(paste0('insideairbnb/', f[2]))
-vancouverAirbnb <- read.csv(paste0('insideairbnb/', f[3]))
-
-df <-  rbind(montrealAirbnb, torontoAirbnb, vancouverAirbnb)
-#summary(df)
-```
-
-In order to use airbnb data for residential segregation studies, we need to remove the listings specific to tourism and not inhabited all year round.
-```{r selectResidents}
 l <- levels(df$property_type)
 lookup  <-  data.frame('type' = 1:length(l))
 lookup$type <- as.factor(l)
@@ -104,90 +85,32 @@ lookup$property_group <- c(
   'home', 'other', 'other', 'hotel'
 )
 
-dfb = data.frame(df,lookup[match(df$property_type, lookup$type),] )
-dfh = subset(dfb, property_group == 'home' & as.character(dfb$host_neighbourhood) == as.character(dfb$neighbourhood))
-dim(dfh)[1] - dim(df)[1]
-
+df <-  data.frame(df,lookup[match(df$property_type, lookup$type),] )
+# dfh = subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood) & df$room_type != "Shared room")
+dfh  <-  subset(df, property_group == 'home' & as.character(df$host_neighbourhood) == as.character(df$neighbourhood))
 dfh$property_group <- NULL
-dfhu = dfh[!duplicated(dfh$host_id),]
+dfhu  <-  dfh[!duplicated(dfh$host_id),]
+dim(dfh)[1] - dim(df)[1]
 dim(dfhu)[1] - dim(dfh)[1]
-```
 
-IN case some moved out, we only keep recent listings:
-```{r cleaninginactive}
+
 dfhu$year  <-  as.numeric(substr(dfhu$last_review, 1, 4))
-dfhun = subset(dfhu, year >= 2017)
+dfhun <-  subset(dfhu, year >= 2017)
 dim(dfhun)[1] - dim(dfhu)[1]
-```
 
-And try to estimate the price per room, given that the number of square meter per listing is too sparsely known.
-```{r estimatePrice}
+
 dfhun$numPrice <- as.numeric(gsub("[$]",'',dfhun$price))
-
+summary(dfhun$room_type)
 final  <-  subset(dfhun, room_type != "Shared room")
+
 final$rooms  <-  ifelse(final$bedrooms == 0, 1, final$bedrooms)
-final$priceperroom  <-  as.numeric(ifelse(final$room_type == "Private room",  final$numPrice,  final$numPrice / final$rooms))
+final$priceperroom  <-  as.numeric(ifelse(final$room_type == T,  final$numPrice,  final$numPrice / final$rooms))
 
-dim(final)
-    
-```
 
-This coumd have been done properly with dplyr, in one command, but it does not really matter (to me!) how you get there as long as you get there with the same result.
-    
-```{r dplyrequivalent, warning=F}
+dim(final) / dim(df)
 
-final <- left_join(df, lookup, by = c("property_type" = "type")) %>%
-  filter(property_group == 'home' &
-           as.character(host_neighbourhood) == as.character(neighbourhood) ) %>% #&
-  filter(!duplicated(host_id)) %>%
-  mutate(year = as.numeric(substr(last_review, 1, 4))) %>%
-  filter(year >= 2017) %>%
-  mutate(numPrice = as.numeric(gsub("[$]",'', price))) %>%
-  filter(room_type != "Shared room") %>%
-  mutate(rooms = ifelse(bedrooms == 0, 1, bedrooms),
-         priceperroom = as.numeric(ifelse(room_type == "Private room", numPrice,numPrice / rooms)))
 
-```
-
-## Retrieving the census data 
-(This chunk of code comes from @dshkol - Thanks!)
-https://github.com/dshkol/scratchpad/blob/master/content/post/2018-05-10-diversity-and-segregation-i.Rmd
-
-# Diversity
-We define a measure of minority diversity (entropy) at the aggregate level of geographical units and define a segregation index as the deviation from the city-wide diversity value.
-
-```{r censusDiversityFunctions, eval=FALSE}
-
-diversity_index <- function(cma) {
-  
-  cma.ct <- get_census("CA16", regions=list(CMA=cma), 
-                       vectors = minority_vectors, level = "CT",
-                       labels = "short", geo_format = NA)
-  
-  # Calculating diversity (Theil's E)
-  # For every variable, divide by v_CA16_3999 and multiply times the logged inverse proportion, then
-  # take the sum for each tract. With 14 different groups, the max entropy is ln(14) = 2.64
-  base_pop <- quo(v_CA16_3954)
-  cma.ei <- cma.ct %>% 
-    group_by(GeoUID) %>% 
-    mutate_at(minorities, funs(S = ./!!base_pop)) %>%
-    mutate_at(vars(ends_with("_S")), funs(E = -.*(log(.)))) %>%
-    select(GeoUID, ends_with("_S_E")) %>% 
-    ungroup() %>% 
-    mutate_at(vars(ends_with("_S_E")), funs(ifelse(is.nan(.),0,.))) %>% 
-    mutate(Ei = rowSums(select(.,-1), na.rm = FALSE)) %>% 
-    select(GeoUID, Ei)
-  
-  # Join with geography
-  
-  cma.geo <- get_census_geometry("CA16", regions=list(CMA=cma), 
-                                 level = "CT", geo_format = "sf")
-  cma.ct <- cma.geo %>% 
-    left_join(cma.ei) %>% 
-    mutate()
-  
-  return(cma.ct)
-}
+############ Census data of all Canadians Metros
 
 
 diversity_csd_map <- function(csd) {
@@ -310,25 +233,14 @@ diversity_csd <- function(cma) {
     select(CMA, GeoUID, `Region Name`, Population, Ei)
   return(cma.eicsd)
 }
-```
 
-Let's apply these fonctions to get the diversity index for all CSD for all Canadian CMAS.
-(This chunk of code comes from @dshkol - Thanks!)
-
-```{r applyCensusDiversityFunctions, message=F, warning=F, eval=F}
+# Apply function to get EI for all CSD for all Canadian CMAS
 cmas <- list_census_regions("CA16") %>% filter(level == "CMA") %>% select(region, name, pop)
 
 cma_ei <- purrr::map_df(cmas$region, .f = diversity_csd) %>% 
   left_join(cmas, by = c("CMA"="region")) %>% 
   select(`Region Name`, `CMA Name`=name, CMA, GeoUID, Population, `CMA Population` = pop, Ei)
-```
 
-# Segregation
-(This chunk of code comes from @dshkol - Thanks!)
-
-We define a measure of minority segregation index as the deviation from the city-wide diversity value.
-
-```{r CensusSegregationFunctions, eval=FALSE}
 
 calc_h <- function(cma_obj) {
   cth <- cma_obj$ct %>% 
@@ -399,6 +311,16 @@ segregation_csd <- function(cma) {
 }
 
 
+
+
+############# compute segregation for all metros and plot comparison of index
+
+cma_seg <- purrr::map_df(cmas$region, .f = segregation_csd) %>% 
+  left_join(cmas, by = c("cma"="region")) %>% 
+  select(`Region Name`=name.x, `CMA Name`=name.y, CMA = cma,Population = csdpop, `CMA Population` = pop, Ei = csdei, H) %>% 
+  ungroup()
+
+
 clean_names <- function (dfr) {
   dfr <- dfr %>% mutate(name = as.character(name))
   replacement <- dfr %>% mutate(name = gsub(" \\(.*\\)", 
@@ -421,74 +343,7 @@ clean_names2 <- function (dfr) {
   dfr
 }
 
-```
 
-And apply it to Canadial metropolises.
-(This chunk of code comes from @dshkol - Thanks!)
-
-```{r applyCensusSegregationFunctions, eval=F}
-############# compute segregation for all metros and plot comparison of index
-
-cma_seg <- purrr::map_df(cmas$region, .f = segregation_csd) %>% 
-  left_join(cmas, by = c("cma"="region")) %>% 
-  select(`Region Name`=name.x, `CMA Name`=name.y, CMA = cma,Population = csdpop, `CMA Population` = pop, Ei = csdei, H) %>% 
-  ungroup()
-```
-
-# Economic segregation
-
-Now let's define a measure of segration which accounts for ordinal variables such as income, wealth or airbnb prices, with Reardon's ordinal measure of segregation (2009).
-
-```{r airbnbSegregationFunction, eval=F}
-
-############# Reardon segregation for AirBnB price per room
-cumulativeFrequency  <-  function(distribution){
-  relativeDistribution  <-  distribution / sum(distribution)
-  iterator <-  length(distribution) - 1
-  cumulativeRelative  <-  seq(1:iterator)
-  for (i in 1:iterator){
-    if (i == 1) cumulativeRelative[[i]] <-  relativeDistribution[[i]]
-    if (i != 1) {
-      cumulativeRelative[[i]]  <-  cumulativeRelative[[i-1]] +  relativeDistribution[[i]]
-    }}
-  return(cumulativeRelative)
-}
-segFunction2 <-  function(distribution){
-  ordinalVariationIndexR <-  4 * distribution * ( 1 - distribution)
-  return(ordinalVariationIndexR)
-}
-segIndex10  <-  function(tabOfSpatialUnits, distributionColNames, K = 10){
-  DistribCluster  <-  colSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
-  Tcluster <-  sum(DistribCluster)
-  cumulativeDistributionCluster <-  cumulativeFrequency(DistribCluster)
-  tabOfSpatialUnits$t <-  rowSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
-  distributionColName <-  distributionColNames[1:(K-1)]
-  ReldistributionColNames  <-  paste("Rel",distributionColName, sep="")
-  CumdistributionColNames  <-  paste("Cum",distributionColName, sep="")
-  MSeg_Cols <-  paste("Seg", distributionColName, sep="")
-  tabOfSpatialUnits[,ReldistributionColNames] <-  tabOfSpatialUnits[,distributionColName] / tabOfSpatialUnits$t
-  tabOfSpatialUnits[,CumdistributionColNames[1]] <- tabOfSpatialUnits[,ReldistributionColNames[1]]
-  tabOfSpatialUnits[,CumdistributionColNames[2]]  <-  tabOfSpatialUnits[,ReldistributionColNames[2]] + tabOfSpatialUnits[,CumdistributionColNames[1]]
-  tabOfSpatialUnits[,CumdistributionColNames[3]] <-  tabOfSpatialUnits[,ReldistributionColNames[3]] + tabOfSpatialUnits[,CumdistributionColNames[2]]
-  tabOfSpatialUnits[,CumdistributionColNames[4]]  <-  tabOfSpatialUnits[,ReldistributionColNames[4]] + tabOfSpatialUnits[,CumdistributionColNames[3]]
-  tabOfSpatialUnits[,CumdistributionColNames[5]]  <-  tabOfSpatialUnits[,ReldistributionColNames[5]] + tabOfSpatialUnits[,CumdistributionColNames[4]]
-  tabOfSpatialUnits[,CumdistributionColNames[6]]  <-  tabOfSpatialUnits[,ReldistributionColNames[6]] + tabOfSpatialUnits[,CumdistributionColNames[5]]
-  tabOfSpatialUnits[,CumdistributionColNames[7]] <-  tabOfSpatialUnits[,ReldistributionColNames[7]] + tabOfSpatialUnits[,CumdistributionColNames[6]]
-  tabOfSpatialUnits[,CumdistributionColNames[8]] <-  tabOfSpatialUnits[,ReldistributionColNames[8]] + tabOfSpatialUnits[,CumdistributionColNames[7]]
-  tabOfSpatialUnits[,CumdistributionColNames[9]] <- tabOfSpatialUnits[,ReldistributionColNames[9]] + tabOfSpatialUnits[,CumdistributionColNames[8]]
-  tabOfSpatialUnits[,MSeg_Cols] <-  segFunction2(tabOfSpatialUnits[,CumdistributionColNames])
-  tabOfSpatialUnits$v <-  (1 / (K - 1)) * rowSums(tabOfSpatialUnits[,MSeg_Cols], na.rm = T)
-  Vcluster <- (1 / (K - 1)) * sum(segFunction2(cumulativeDistributionCluster))
-  tabOfSpatialUnits$seg  <-  (tabOfSpatialUnits$t / (Tcluster * Vcluster)) * (Vcluster - tabOfSpatialUnits$v)
-  segIndex <- sum(tabOfSpatialUnits$seg, na.rm = T)
-  return(segIndex)
-}
-```
-
-## Comparing cities
-(This chunk of code comes from @dshkol - Thanks!)
-
-```{r applyCensusSegregationFunctionsBis}
 ggplot(bind_rows(cma_seg %>% 
                    filter(Population > 100000) %>% 
                    clean_names2 %>% 
@@ -509,11 +364,8 @@ ggplot(bind_rows(cma_seg %>%
   labs(y = "Segregation entropy index", x = "", 
        #title = "The most and the least segregated large cities in Canada",
        caption = "Segregation index of visible minorities\n@dshkol | Data: Statistics Canada, Census 2016")
-```
 
-(This chunk of code comes from @dshkol - Thanks!)
 
-```{r applyCensusDiversityFunctions2}
 ggplot(cma_seg%>% filter(Population > 100000) %>% clean_names2 %>% 
          mutate(big_cma = ifelse(`CMA Population` > 1000000, `CMA Name`,"Other")),
        aes(y= H, x = Ei, size = Population^1.5, colour = big_cma)) +
@@ -526,44 +378,48 @@ ggplot(cma_seg%>% filter(Population > 100000) %>% clean_names2 %>%
         axis.text = element_blank()) + 
   labs(x = "More diverse \u2192", y = "More segregated \u2192",
        caption = "Entropy index based calculations of diversity and segregation\nof visible minority groups in cities with population over 100,000\n@dshkol | Data: Statistics Canada, Census 2016")
-```
+
+####################################### 
+#Start city specific analysis
 
 
-## Start city specific analysis with Airbnb Data
-
-Now let's select a city to work with more specifically, for example "toronto"
-```{r selectCity, warning=F, message=F}
 city <-  "toronto"
 
+
 if(city == "toronto"){
-  citynames  <-  unique(torontoAirbnb$city)
+  citynames  <-  toronto
   censuscode  <-  ct
   cityhall  <-  cht
   censusCodeMuni  <- cmt 
   breakDist <-  bdtv
 }
 if(city == "vancouver"){
-  citynames  <-  unique(vancouverAirbnb$city)
+  citynames  <-  vancouver
   censuscode  <-  cv
   cityhall  <-  chv
   censusCodeMuni  <-  cmv 
   breakDist  <-  bdtv
 }
 if(city == "montreal"){
-  citynames  <-  unique(montrealAirbnb$city)
+  citynames  <-  montreal
   censuscode  <-  cm
   cityhall  <-  chm
   censusCodeMuni <-  cmm
   breakDist  <-  bdm
 }
 
+
 city_data <-  subset(final, city %in% citynames)
-```
 
-Let's retrieve the census minority data at the census tract and community area level:
-(This chunk of code comes from @dshkol - Thanks!)
+## Identifying the vectors for visible Minority status
+parent_vector <- "v_CA16_3954"
+minorities <- list_census_vectors("CA16") %>% 
+  filter(vector == "v_CA16_3954") %>% 
+  child_census_vectors(leaves_only = TRUE) %>% 
+  pull(vector)
 
-```{r selectCityInCensus, eval=F}
+minority_vectors <- c(parent_vector, minorities)
+
 cma.ct <- get_census("CA16", regions=list(CMA=censuscode), 
                      vectors = minority_vectors, level = "CT",
                      labels = "short", geo_format = NA)
@@ -577,17 +433,76 @@ csd.geo <- get_census_geometry("CA16", regions=list(CSD=censuscode),
 csd.csd.geo <- get_census_geometry("CA16", regions=list(CSD=censuscode), 
                                    level = "CSD", geo_format = "sf")
 
-long.ct <- get_census("CA16", regions=list(CSD=censusCodeMuni), 
-                      vectors = minority_vectors, level = "CT",
-                      labels = "detailed", geo_format = "sf")
-names(long.ct)[14:27] <- c("Total","White","South Asian","Chinese","Black","Filipino",
-                           "Latin American","Arab","SE Asian","West Asian","Korean",
-                           "Japanese","Other","Multiple")
-```
 
-# Diversity
-And plot resulting diversity map (we could also add airbnb listings when uncommenting the markers)
-```{r selectCityInCensusBis, warning=F, message=F}
+pal <- colorQuantile(
+  palette =  'Blues',
+  domain = city_data$priceperroom,
+  n = 10
+)
+
+map <- leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = csd.csd.geo,
+    color = 'black',
+    fill = F,
+    weight = 0.7,
+    opacity = 0.9
+  ) %>% addPolygons(
+    data = csd.geo,
+    color = 'grey',
+    fill = F,
+    weight = 0.4
+  ) %>%
+  addCircleMarkers(
+    data = city_data,
+    radius = ~ sqrt(4 * rooms),
+    lat = ~ latitude,
+    fillColor = ~ pal(priceperroom),
+    color = 'black',
+    stroke = T,
+    fillOpacity = 0.5,
+    weight = 0.1,
+    layerId = ~ id,
+    lng = ~ longitude
+  ) %>% 
+  addLegend(pal = pal, position = 'topleft', values = city_data$priceperroom)
+
+map
+
+
+
+
+diversity_index <- function(cma) {
+  
+  cma.ct <- get_census("CA16", regions=list(CMA=cma), 
+                       vectors = minority_vectors, level = "CT",
+                       labels = "short", geo_format = NA)
+  
+  # Calculating diversity (Theil's E)
+  # For every variable, divide by v_CA16_3999 and multiply times the logged inverse proportion, then
+  # take the sum for each tract. With 14 different groups, the max entropy is ln(14) = 2.64
+  base_pop <- quo(v_CA16_3954)
+  cma.ei <- cma.ct %>% 
+    group_by(GeoUID) %>% 
+    mutate_at(minorities, funs(S = ./!!base_pop)) %>%
+    mutate_at(vars(ends_with("_S")), funs(E = -.*(log(.)))) %>%
+    select(GeoUID, ends_with("_S_E")) %>% 
+    ungroup() %>% 
+    mutate_at(vars(ends_with("_S_E")), funs(ifelse(is.nan(.),0,.))) %>% 
+    mutate(Ei = rowSums(select(.,-1), na.rm = FALSE)) %>% 
+    select(GeoUID, Ei)
+  
+  # Join with geography
+  
+  cma.geo <- get_census_geometry("CA16", regions=list(CMA=cma), 
+                                 level = "CT", geo_format = "sf")
+  cma.ct <- cma.geo %>% 
+    left_join(cma.ei) %>% 
+    mutate()
+  
+  return(cma.ct)
+}
+
 tractTable <- diversity_index(censuscode)
 
 
@@ -632,19 +547,22 @@ addLegend(pal = pal2, position = 'topleft', values = tractTable$Ei)
 map
 
 
-```
 
-# Minority concentration
-(This chunk of code comes from @dshkol - Thanks!)
+############### map concentration of minorities
 
-The next plot shows the spatial concentration of minorities in the central municipality
-
-```{r selectCityInsegregationBis}
+long.ct <- get_census("CA16", regions=list(CSD=censusCodeMuni), 
+                      vectors = minority_vectors, level = "CT",
+                      labels = "detailed", geo_format = "sf")
+names(long.ct)[14:27] <- c("Total","White","South Asian","Chinese","Black","Filipino",
+                           "Latin American","Arab","SE Asian","West Asian","Korean",
+                           "Japanese","Other","Multiple")
 
 long.ct.tidy <- long.ct %>% 
   select(-White) %>% 
   tidyr::gather(Group, Count, `South Asian`:Multiple) %>% 
   mutate(Proportion = Count/Total)
+
+#head(as.data.frame(long.ct.tidy))
 
 ggplot(long.ct.tidy) + geom_sf(aes(fill = Proportion^(1/2), colour = Proportion^(1/2))) + 
   scale_fill_viridis_c(option = 3, guide = FALSE) + 
@@ -653,64 +571,31 @@ ggplot(long.ct.tidy) + geom_sf(aes(fill = Proportion^(1/2), colour = Proportion^
   coord_sf(datum = NA) +
   facet_wrap(~Group, ncol = 4)  +
   labs(caption = "Visible minority groups by square-root proportion of Census Tract population\n@dshkol | Data: Statistics Canada, Census 2016")
-```
 
-While this map shows the distribution of airbnb listings.
 
-```{r selectCityInAirbnb}
-pal <- colorQuantile(
-  palette =  'Blues',
-  domain = city_data$priceperroom,
-  n = 10
-)
 
-map <- leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(
-    data = csd.csd.geo,
-    color = 'black',
-    fill = F,
-    weight = 0.7,
-    opacity = 0.9
-  ) %>% addPolygons(
-    data = csd.geo,
-    color = 'grey',
-    fill = F,
-    weight = 0.4
-  ) %>%
-  addCircleMarkers(
-    data = city_data,
-    radius = ~ sqrt(4 * rooms),
-    lat = ~ latitude,
-    fillColor = ~ pal(priceperroom),
-    color = 'black',
-    stroke = T,
-    fillOpacity = 0.5,
-    weight = 0.1,
-    layerId = ~ id,
-    lng = ~ longitude
-  ) %>% 
-  addLegend(pal = pal, position = 'topleft', values = city_data$priceperroom)
-
-map
-```
-
-## Interaction of big and small data
-
-If we want to make the two sets of data communicate, we need to do an intersection between the two, by either aggregating scatter data into areal polygons, either by assigning polygon information to points.
-```{r intersectingAirbnbInTracts}
 #############aggregate airbnb into city tracts.
-city_tracts  <-  as_Spatial(csd.geo[csd.geo$CSD_UID == censusCodeMuni,])
+city_tr  <-  csd.geo[csd.geo$CSD_UID == censusCodeMuni,]
+#city_tr$vacancy = (city_tr$Dwellings - city_tr$Households) / city_tr$Dwellings
+#save(toronto_tr, vancouver_tr, file="cityTractsWithPopAndVacancy.RData")
+
+
 rbnb_pts <- city_data 
 coordinates(rbnb_pts) <- ~longitude+latitude
+city_tracts <- as_Spatial(city_tr)
 rbnb_pts@proj4string <-CRS("+proj=longlat +datum=WGS84")
 city_tracts@proj4string <-CRS("+proj=longlat +datum=WGS84")
+plot(city_tracts, border = "grey")
+points(rbnb_pts, col = "red", cex = 0.2, pch = 16)
+
+#class(city_tracts)
+#class(rbnb_pts)
+
 PTS <- as(rbnb_pts, "sf")
 POLY <- as(city_tracts, "sf")
 idata <- st_intersection(PTS, POLY)
-```
 
-Then we count the number of airbnb listings in tract and their price distribution
-```{r aggregateAirbnbInTracts}
+#head(idata)
 idata$distribPrice <- cut2(idata$priceperroom, g = 10)
 intervals <- levels(unique(idata$distribPrice))
 
@@ -718,10 +603,12 @@ rbnbPerTract <- as.data.frame(idata %>%
                                 #group_by(CSD_UID) %>%
                                 count(GeoUID, sort = TRUE) %>%
                                 select(GeoUID, n))[,1:2]
+
 rbnbDistributionPerTract <- as.data.frame(idata %>%
                                             #group_by(CSD_UID) %>%
                                             count(GeoUID, distribPrice) %>%
                                             select(GeoUID, distribPrice, n))[,1:3]
+
 
 tractDistrib <- dcast(rbnbDistributionPerTract, GeoUID ~ distribPrice)
 tractDistrib[is.na(tractDistrib)] <- 0
@@ -729,6 +616,7 @@ tractDistrib <- tractDistrib[,c("GeoUID", intervals)]
 colnames(tractDistrib)[2:11] <- paste0("G", 1:10)
 
 lookupDistrib <-  data.frame('name' = paste0("G", 1:10), 'interval' = intervals)
+
 listingCounts <-  as.data.frame(rbnbPerTract[,1:2])
 city_tracts@data <- data.frame(city_tracts@data,
                                   listingCounts[match(city_tracts@data$GeoUID,
@@ -739,10 +627,7 @@ city_tracts@data <- data.frame(city_tracts@data,
 city_tracts@data <- data.frame(city_tracts@data,
                                   tractTable[match(city_tracts@data$GeoUID,
                                                    tractTable$GeoUID),])
-```
 
-We also include minority share in the spatial table
-```{r addMinorityCols}
 Mino <-  as.data.frame(cma.ct[,c("GeoUID", minorities)])
 
 city_tracts@data <- data.frame(city_tracts@data,
@@ -753,43 +638,53 @@ city_tracts@data$ListingPerCapita <-  city_tracts@data$n / city_tracts@data$Popu
 city_tracts@data <- city_tracts@data %>% 
   mutate_at(minorities, funs(Share =./ Population) )
 
-```
-
-And the distance of each tract centroid to the city hall:
-```{r addDistanceCol}
+#summary(city_tracts@data)
 centroidsCity <-  gCentroid(city_tracts,byid=TRUE)
+plot(centroidsCity, add = T, pch = 16, cex = 0.6)
+
 listMinoShares  <-  paste0(minorities, "_Share")
+
 EstimatorAirbnbPresence <-  cbind(city_tracts@data[,c("GeoUID", "ListingPerCapita", "Ei", 
-                                                       listMinoShares)],coordinates(centroidsCity))
+                                                       listMinoShares)],
+                                coordinates(centroidsCity))
+
+#head(EstimatorAirbnbPresence)
+
 DistCityHall <- distm(EstimatorAirbnbPresence[,c('x','y')], 
                       cityhall, fun=distVincentyEllipsoid)
 EstimatorAirbnbPresence <-  cbind(EstimatorAirbnbPresence, DistCityHall)
-hist(EstimatorAirbnbPresence$DistCityHall)
-```
 
-There is a non-linear relationship between the density of listing per tract and the distance to city hall.
-```{r vizAibnbMinoritiesAndDistance, message=F, warning=F}
+#head(EstimatorAirbnbPresence)
+
+hist(EstimatorAirbnbPresence$DistCityHall)
+
+
+
 ggplot(EstimatorAirbnbPresence, aes(x = DistCityHall, y = ListingPerCapita)) +
   geom_point() + geom_smooth() + scale_x_log10() + scale_y_log10() +
   geom_vline(xintercept = breakDist, col = "orange", cex = 1)
-```
 
-So we use two subsets of data to do further regressions: central tracts located less than 10km away from the city and peripheral tracts located further.
-```{r cutByDistance}
 # mean value of listing per capita of tracts between 0 & 10 km: 
 central <- EstimatorAirbnbPresence %>%
   filter(DistCityHall <= breakDist, !is.na(ListingPerCapita)) %>%
   select(ListingPerCapita, DistCityHall, Ei, listMinoShares)
-dim(central)
+
+# central %>%
+#   summarise(mean(ListingPerCapita))
+
+
 # regression listing per capita of tracts above 10 km: 
 peripheral <- EstimatorAirbnbPresence %>%
   filter(DistCityHall > breakDist, !is.na(ListingPerCapita)) %>%
   select(ListingPerCapita, DistCityHall, Ei, listMinoShares)
-dim(peripheral)
-```
 
-Let's regress the scaled log of airbnb listings with scaled variables such as the log of distance to city hall and proportions of visible minorities for our three data samples:
-```{r modelAibnbMinoritiesAndDistanceByTract}
+#summary(lm(log(ListingPerCapita) ~ log(DistCityHall), data = peripheral))
+
+
+lab  <-  as.data.frame (list_census_vectors('CA16') %>% 
+                       filter(vector %in% minorities) %>% 
+                       select(vector, label))
+
 
 for (sample in c("all", "central", "peripheral")){
   if (sample == "all") df <-  EstimatorAirbnbPresence
@@ -816,10 +711,8 @@ colnames(reg_total)  <-  c("est_all", "pval_all",  "minority",  "est_central", "
                         "est_peripheral", "pval_peripheral")
 reg_total$variables  <-  rownames(reg_total)
 reg_total$var  <-  ifelse(is.na(reg_total$minority), as.character(reg_total$variables), as.character(reg_total$minority))
-```
 
-and plot the results regarding coefficients:
-```{r vizmodelAibnbMinoritiesAndDistanceByTract}
+
 pall <- ggplot(reg_total, aes(x = var)) + 
   geom_bar(aes(y = est_all, fill = ifelse(pval_all < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") + 
   # scale_y_continuous(limits = c(-0.55, 0.55)) +
@@ -834,14 +727,14 @@ pper <- ggplot(reg_total, aes(x = var)) +
   #scale_y_continuous(limits = c(-0.55, 0.55)) + 
   coord_flip() +   theme(legend.title=element_blank()) 
 
-grid.arrange(pall, pcent, pper)
-```
+#grid.arrange(pall, pcent, pper)
 
-Now let's see how we could model relationships at the level of airbnb listings directly, in an attempt to model the price per room:
-```{r modelAibnbMinoritiesAndDistance}
 
 EstimatorAirbnbPrice <- data.frame(idata, EstimatorAirbnbPresence[match(idata$GeoUID, 
                                                                         EstimatorAirbnbPresence$GeoUID),])
+# head(EstimatorAirbnbPrice)
+# hist(EstimatorAirbnbPrice$priceperroom)
+
 
 EstimatorAirbnbPrice_all <- EstimatorAirbnbPrice %>%
   filter(!is.na(priceperroom), priceperroom > 0) 
@@ -881,10 +774,6 @@ colnames(reg_total2) <-  c("est_all", "pval_all",  "minority",  "est_central", "
 reg_total2$variables <-  rownames(reg_total2)
 reg_total2$var  <-  ifelse(is.na(reg_total2$minority), as.character(reg_total2$variables), 
                         as.character(reg_total2$minority))
-```
-
-And visualise the results compared to previous results:
-```{r vizmodelAibnbMinoritiesAndDistance}
 
 pall2 <- ggplot(reg_total2, aes(x = var)) + 
   geom_bar(aes(y = est_all, fill = ifelse(pval_all < 0.05, "pval < 0.05", "pval >= 0.05")), stat="identity") + 
@@ -905,22 +794,58 @@ grid.arrange(pall, pall2,
              pper, pper2, 
              ncol = 2)
 
-```
 
 
-Then let's compare the segregation levels on minority entropy and ordinal price for the chosen city.
-```{r computeSegIndex}
+############# Reardon segregation for AirBnB price per room
+cumulativeFrequency  <-  function(distribution){
+  relativeDistribution  <-  distribution / sum(distribution)
+  iterator <-  length(distribution) - 1
+  cumulativeRelative  <-  seq(1:iterator)
+  for (i in 1:iterator){
+    if (i == 1) cumulativeRelative[[i]] <-  relativeDistribution[[i]]
+    if (i != 1) {
+      cumulativeRelative[[i]]  <-  cumulativeRelative[[i-1]] +  relativeDistribution[[i]]
+    }}
+  return(cumulativeRelative)
+}
+segFunction2 <-  function(distribution){
+  ordinalVariationIndexR <-  4 * distribution * ( 1 - distribution)
+  return(ordinalVariationIndexR)
+}
+segIndex10  <-  function(tabOfSpatialUnits, distributionColNames, K = 10){
+  DistribCluster  <-  colSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
+  Tcluster <-  sum(DistribCluster)
+  cumulativeDistributionCluster <-  cumulativeFrequency(DistribCluster)
+  tabOfSpatialUnits$t <-  rowSums(tabOfSpatialUnits[,distributionColNames], na.rm = T)
+  distributionColName <-  distributionColNames[1:(K-1)]
+  ReldistributionColNames  <-  paste("Rel",distributionColName, sep="")
+  CumdistributionColNames  <-  paste("Cum",distributionColName, sep="")
+  MSeg_Cols <-  paste("Seg", distributionColName, sep="")
+  tabOfSpatialUnits[,ReldistributionColNames] <-  tabOfSpatialUnits[,distributionColName] / tabOfSpatialUnits$t
+  tabOfSpatialUnits[,CumdistributionColNames[1]] <- tabOfSpatialUnits[,ReldistributionColNames[1]]
+  tabOfSpatialUnits[,CumdistributionColNames[2]]  <-  tabOfSpatialUnits[,ReldistributionColNames[2]] + tabOfSpatialUnits[,CumdistributionColNames[1]]
+  tabOfSpatialUnits[,CumdistributionColNames[3]] <-  tabOfSpatialUnits[,ReldistributionColNames[3]] + tabOfSpatialUnits[,CumdistributionColNames[2]]
+  tabOfSpatialUnits[,CumdistributionColNames[4]]  <-  tabOfSpatialUnits[,ReldistributionColNames[4]] + tabOfSpatialUnits[,CumdistributionColNames[3]]
+  tabOfSpatialUnits[,CumdistributionColNames[5]]  <-  tabOfSpatialUnits[,ReldistributionColNames[5]] + tabOfSpatialUnits[,CumdistributionColNames[4]]
+  tabOfSpatialUnits[,CumdistributionColNames[6]]  <-  tabOfSpatialUnits[,ReldistributionColNames[6]] + tabOfSpatialUnits[,CumdistributionColNames[5]]
+  tabOfSpatialUnits[,CumdistributionColNames[7]] <-  tabOfSpatialUnits[,ReldistributionColNames[7]] + tabOfSpatialUnits[,CumdistributionColNames[6]]
+  tabOfSpatialUnits[,CumdistributionColNames[8]] <-  tabOfSpatialUnits[,ReldistributionColNames[8]] + tabOfSpatialUnits[,CumdistributionColNames[7]]
+  tabOfSpatialUnits[,CumdistributionColNames[9]] <- tabOfSpatialUnits[,ReldistributionColNames[9]] + tabOfSpatialUnits[,CumdistributionColNames[8]]
+  tabOfSpatialUnits[,MSeg_Cols] <-  segFunction2(tabOfSpatialUnits[,CumdistributionColNames])
+  tabOfSpatialUnits$v <-  (1 / (K - 1)) * rowSums(tabOfSpatialUnits[,MSeg_Cols], na.rm = T)
+  Vcluster <- (1 / (K - 1)) * sum(segFunction2(cumulativeDistributionCluster))
+  tabOfSpatialUnits$seg  <-  (tabOfSpatialUnits$t / (Tcluster * Vcluster)) * (Vcluster - tabOfSpatialUnits$v)
+  segIndex <- sum(tabOfSpatialUnits$seg, na.rm = T)
+  return(segIndex)
+}
 
 ReardonSegregationAirbnbPrice <- segIndex10(tabOfSpatialUnits = city_tracts@data, distributionColNames = paste0("G", 1:10))
 EntropySegregationMinorities  <-  cma_seg[cma_seg$CSD_UID == censusCodeMuni,"H"]
 
 ReardonSegregationAirbnbPrice
 EntropySegregationMinorities
-```
 
 
-# Now up to you to:
-* change the city
-* change the models
-* improve the data cleaning
-* etc.
+
+
+

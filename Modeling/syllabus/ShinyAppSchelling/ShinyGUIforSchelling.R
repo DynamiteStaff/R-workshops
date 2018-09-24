@@ -1,4 +1,6 @@
 
+library(seg)
+library(ineq)
 
 library(shiny)
 #setwd("dev/summerschoolLabex/R-workshops/Modeling/syllabus/")
