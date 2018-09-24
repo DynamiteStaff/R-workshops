@@ -1,11 +1,15 @@
 ---
-title: "ScrapFlightRadar"
-output: html_document
+title: "Learn to scrap dynamic content using Docker and Selenium"
+output: 
+  html_document:
+    toc: true
+    toc_float: 
+        collapsed: false
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, error=TRUE)
-
 ```
 
 ```{r, message=FALSE}
@@ -19,9 +23,9 @@ library(lubridate)
 library(RSelenium)
 ```
 
-# Scrape all departures or arrivals from FlightRadar website
+# Introduction
 
-We see two methods to capture departures and arrivals data for airport on FlightRadar website, using an headless browser, and using XHR request.
+We see two methods to capture departures and arrivals data for airport on **FlightRadar** website, using a browser running on a server, and using an XHR request.
 
 For each airports page, FlightRadar website offer the possibility to see general informations, departures and arrivals flights information. For this tutorial we try to scrape the [Bordeaux Mérignac Airport BOD](https://www.flightradar24.com/data/airports/bod/) departures data [page](https://www.flightradar24.com/data/airports/bod/departures) and arrival flights [page](https://www.flightradar24.com/data/airports/bod/arrivals)
 
@@ -30,16 +34,21 @@ As you could see if you go to departures pages, you have two interesting buttons
 <img src='images/button_earlier.png'/>
 <img src='images/button_later.png'/>
 
-To display all data available (something like 24h of past and future departures/arrivals), we simulate multiples clic on this two buttons, and we stop this behavior only when this buttons disapear from the page.
+To display all data available (something like 24h of past and future departures/arrivals), we simulate multiples clic on this two buttons, and we stop this behavior only when these buttons disapears from the page.
 
-## Using Selenium headless browser
+At the end, we use Docker to export our script on some distant server for autonomous execution.
 
-Due to some defence created by webmaster to protect some data, you need to simulate an human behavior, if possible using a real browser. 
+# Using Selenium server browser
 
+## Install and use Selenium 
+
+### The Selenium RLibrary
+
+Due to some defense created by webmaster to protect their data (test javascript, user-agent, infinite loading, etc.), you need to simulate an human behavior, if possible using a real browser. 
 
 To be short, [Selenium](https://docs.seleniumhq.org/) is a multi-tools project focusing on task automation to test web aplication. It works with lots of Internet browsers, and lot of operating systems.  
 
-In short, Selenium Webdriver give to developper an API to interact/pilot an headless internet browser without opening it. So, you, developper, you could use this API with your favorite langage (Java, Python, R, etc.) to sent commands to browser in order to navigate, move your mouse, click on DOM element, sent keyboard output to input forms, inject javascript, capture image of the page, extract html, etc.
+Selenium Webdriver give to developper an API to interact/pilot an headless internet browser without opening it. So, you, developper, you could use this API with your favorite langage (Java, Python, R, etc.) to sent commands to browser in order to navigate, move your mouse, click on DOM element, sent keyboard output to input forms, inject javascript, capture image of the page, extract html, etc.
 
 First, you need to install and load RSelenium package, the R bindings library for Selenium Webdriver API : 
 
@@ -49,17 +58,21 @@ devtools::install_github("ropensci/RSelenium")
 ```
 Depending of your existing configuration and OS you probably need to install some dependent software packages.
 
-It's possible to use directly Selenium with your browser, but we prefer to use directly a server version. Why ? Because using server version of Selenium, you have the possibility a) to sent command on local or remote server running Selenium b) which run a different browsers and/or OS, c) to distribute tests over multiple machines.
+It's possible to use directly Selenium in connection with your browser, but we prefer to use directly a server version. Why ? Because using server version of Selenium, you have the possibility :
 
-Selenium is a fast moving project, and some release are really buggy, so try to choose a stable version, and don't deseperate.
+a) to sent command on local or remote server running Selenium 
+b) which run a different browsers and/or OS, 
+c) to distribute tests over multiple machines.
+
+Selenium is a fast moving project, and some release are really buggy, so try to choose a stable version, and don't desperate.
 
 ### Run a Selenium server
 
-Install Docker on your OS using docker documentation at the bottom of this document. 
+**!! Before continuing, read the documentation on Docker at the bottom of this document, it explain what is really Docker/images/container, and it explain how to install images/containers on your system !!**
 
 When it's done, we `pull and run` [one of](https://github.com/SeleniumHQ/docker-selenium) Docker Selenium-Server image using terminal. For this tutorial we use Firefox !
 
-In classic context (good internet connection), we pull images directly from Docker Hub server.
+In classic context (good internet connection), we pull images directly from the Docker Hub server, a central repository like CRAN for R.
 
 ```bash
 sudo docker pull selenium/standalone-firefox:3.14.0-arsenic
@@ -72,7 +85,7 @@ sudo docker load --input=r-alpine.tar
 sudo docker load --input=rSelenium.tar
 ```
 
-Create the Selenium container :
+Create the Selenium container which contain Firefox :
 
 ```bash
 sudo docker run --shm-size=2g --name selenium -d -p 4445:4444 selenium/standalone-firefox:3.14.0-arsenic
@@ -102,7 +115,9 @@ Some of them :
 - `remDr$findElement(...)` : Find and element in the html structure, using different method : xpath, css, etc.
 - `remDr$executeScript(...`) : Execute a js script in the remote browser
 
-### Analyze html page structure !
+## From analysis to automation
+
+### Analysis of website HTML structure 
 
 Open `Web Developer tools` in your favorite browser on the arrivals webpage of BOD : `https://www.flightradar24.com/data/airports/bod/arrivals`
 
@@ -140,7 +155,9 @@ Sys.sleep(5) # time to load !
 remDr$screenshot(file = "screenshoot.png")
 ```
 
-Building XPATH correct expression could be difficult. A good way to test validity of your XPATH expressions was to use an interactive way, with web developper console. 
+### Resolve infinite loading using XPath
+
+Building XPATH correct expression could be difficult. A good way to test validity of your XPATH expressions was to use an interactive way, using the web developper console. There are some good cheatsheet pages which resume all the possibilities of XPATH : [1](https://devhints.io/xpath) [2](https://gist.github.com/LeCoupa/8c305ec8c713aad07b14)
 
 Clic on console tab :
 
@@ -226,7 +243,7 @@ error = function(e) {
 
 See changes before and after using `remDr$screenshot(display = TRUE)` command
 
-### Exercices
+## Exercices
 
 - Create a function which clic on button until they all disapears  :)
 
@@ -322,15 +339,15 @@ kable(df,caption ="results of webscraping")
 
 </div>
 
-## Using XHR request
+# Scrap using XHR requests
 
-https://www.w3schools.com/js/js_json_http.asp
+## Analyse Network data in browser 
 
-Sometimes, a defence is also a point of vulnerability. Many site use an internal API to query and feed website. 
+Sometimes, a defense is also a point of vulnerability. Many site use some sort of internal API to query and feed their website, it's an easy way for developpers to distribute the data. But for us, this is also a perfect data [SOF (Single Point Of Failure)](https://en.wikipedia.org/wiki/Single_point_of_failure). 
 
 We try to see if this is the case with flight radar :)
 
-Open the dev tools in the browser, clic on Network tab, then XHR tab.
+Open the dev tools in the browser, clic on **Network** tab, then **XHR** tab.
 
 <img src='images/XHR.png'/>
 
@@ -352,7 +369,9 @@ Copy paste this url in your browser to see how the result json is structured. In
 - **timestamp :** date of capture
 - **data :** a list of 100 flights corresponding to actual page
 
-We download and convert json data to data.frame using the jsonlite wonderfull package :) Why wonderfull ? Because jsonlite had an option to flatten the structure of json which normally contain data.frame into data.fram into data.frame ... 
+## Generate a custom GET Query
+
+We have the capacity to generate custom query to download data at custom timestamp. This query return data structured in json , so we try to convert this data to data.frame using the jsonlite wonderfull package :) Why wonderfull ? Because jsonlite had an option to flatten the structure of json which normally contain data.frame into data.fram into data.frame ... 
 
 ```{r, message=FALSE}
 
@@ -364,6 +383,7 @@ url <- paste("https://api.flightradar24.com/common/v1/airport.json?code=bod&plug
 json <- jsonlite::fromJSON(url,flatten = T) 
 ```
 
+We extract information for the first page of Arrivals data collected by airport from json.
 
 ```{r, message=FALSE}
 pageOfData <- json$result$response$airport$pluginData$schedule$arrivals$data 
@@ -375,13 +395,13 @@ knitr::kable(filteredData, caption = "page 1 of arrival for BOD")
 
 ```
 
-### Exercices
+## Exercices
 
-- Get all pages of data by generating the correct query to API :)
+- Get all pages of arrivals data by generating the correct query to API :)
 
-## Docker containers !
+# Automation of scraping using Docker containers !
 
-### Why ?
+## Why ?
 
 This is the ultimate and probably the most complex part of this big tutorial.
 
@@ -392,7 +412,7 @@ In real webscraping project, there are two possible use case :
 
 Take a very practical example, if you need to collect **one year of data on a daily basis** you cannot use your personnal computer. You need to connect and run your program from a distant server (somewhere on internet).
 
-### Docker ?
+## What is Docker ?
 
 To be really really short on subject, [Docker](https://en.wikipedia.org/wiki/Docker_(software)) is a technology which encapsulate one or multiple software with all theirs dependencies into an isolated (and if possible immutable) container which run on top of any system interoperable with Docker tools (Window/Linux/Mac). You could run multiple isolated containers (A, B , ...), with capacity to exchange informations using a common dedicated local network, on the same machine. 
 
@@ -432,6 +452,8 @@ There are three big step to understand in containers lifecycle:
 
 - Finally, you **run** the builted image.
 
+You could find lot of other informations on the web, but also on this [online tutorial](https://hackmd.io/s/SylAFG_Kf#) which resume lot of commands.  
+
 In this tutorial, we give you the corresponding `Dockerfile` which contain the recipe to build a `Container` ready to scrape the flightradar website. All script to do that are in `docker-scripts` folder.
 
 At the end of the tutorial you have this architecture, with two container (RSelenium and Flightscrapradar) which communicate to scrap data on flightradar website.
@@ -440,9 +462,9 @@ At the end of the tutorial you have this architecture, with two container (RSele
 <img src='images/docker_Reselenium.png'/>
 </center>
 
-### Linux way
+## Installing Docker 
 
-**DOCKER installation**
+### Linux way
 
 On linux Ubuntu, you found documentation [here](https://docs.docker.com/install/linux/docker-ce/ubuntu/). First step, install the key and repository. 
 
@@ -473,7 +495,38 @@ Install docker-ce :
 sudo apt-get install docker-ce
 ```
 
-**PREPARE image**
+### Windows and Mac Way
+
+There are two way to install Docker for Windows and Mac, a new way [Windows](https://docs.docker.com/docker-for-windows/) / [Mac](https://docs.docker.com/docker-for-mac/) and an old way. For this tutorial we use the the old way due to better compatibility.
+
+Install Docker Tools for windows using the `DockerToolbox.exe` (or `.dmg` for mac) file. You could find the official documentation is available here [Windows]( https://docs.docker.com/toolbox/toolbox_install_windows/) and [Mac]()https://docs.docker.com/toolbox/toolbox_install_mac/
+
+<img src='images/SetupDockerToolbox.jpg'/>
+
+After that you could launch Docker quickstart terminal directly after installation or using the icon in start menu. 
+
+<img src='images/DockerQuickstartTerminal.jpg'/>
+
+Docker first download an iso, and after that test if your system is ready to run containers. If you see an error like this, you need to run another step. 
+
+<img src='images/DockerQuickstartTerminalPreCheck.jpg'/>
+
+Restart your computer, and try to activate an option in the BIOS (Del key during initialization of your computer) probably named "Vanderpool technology" or "VT-X technology" or "Virtualization technology". Save and restart. Some pictore for UEFI Bios on HP, DELL, ASUS motherboard/systems.
+
+*Asus*
+
+<img src='images/intel-virtualization-technology.jpg'/>
+
+*Dell* 
+
+<img src='images/inter-virtualization-technology-Dell.png'/>
+
+*HP*
+
+<img src='images/inter-virtualization-technology-HP.jpg'/>
+
+
+## Tutorial Docker / Linux
 
 Copy the folder `docker-images` on the USB Key (ask teachers) into the `scrap-flightradar` folder of this tutorial. 
 
@@ -543,35 +596,7 @@ Export data  :
 <img src='images/docker_exportServer.png'/>
 </center>
 
-### Windows and Mac way
-
-Thre are two way to install Docker for Windows and Mac, a new way [Windows](https://docs.docker.com/docker-for-windows/) / [Mac](https://docs.docker.com/docker-for-mac/) and an old way. For this tutorial we use the the old way due to better compatibility.
-
-Install Docker Tools for windows using the `DockerToolbox.exe` (or `.dmg` for mac) file. You could find the official documentation is available here [Windows]( https://docs.docker.com/toolbox/toolbox_install_windows/) and [Mac]()https://docs.docker.com/toolbox/toolbox_install_mac/
-
-<img src='images/SetupDockerToolbox.jpg'/>
-
-After that you could launch Docker quickstart terminal directly after installation or using the icon in start menu. 
-
-<img src='images/DockerQuickstartTerminal.jpg'/>
-
-Docker first download an iso, and after that test if your system is ready to run containers. If you see an error like this, you need to run another step. 
-
-<img src='images/DockerQuickstartTerminalPreCheck.jpg'/>
-
-Restart your computer, and try to activate an option in the BIOS (Del key during initialization of your computer) probably named "Vanderpool technology" or "VT-X technology" or "Virtualization technology". Save and restart. Some pictore for UEFI Bios on HP, DELL, ASUS motherboard/systems.
-
-*Asus*
-
-<img src='images/intel-virtualization-technology.jpg'/>
-
-*Dell* 
-
-<img src='images/inter-virtualization-technology-Dell.png'/>
-
-*HP*
-
-<img src='images/inter-virtualization-technology-HP.jpg'/>
+## Tutorial Docker / Windows & Mac 
 
 **PREPARE image**
 
