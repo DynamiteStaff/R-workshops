@@ -15,7 +15,10 @@
    version="1.1"
    id="svg8"
    inkscape:version="0.92.3 (2405546, 2018-03-11)"
-   sodipodi:docname="docker_image.svg">
+   sodipodi:docname="docker_image.svg"
+   inkscape:export-filename="/home/reyman/Projets/RWorkshop-Florence/Web_data_collection/scrap_flightradar/images/docker_image.png"
+   inkscape:export-xdpi="90"
+   inkscape:export-ydpi="90">
   <defs
      id="defs2">
     <marker
@@ -87,7 +90,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.1059592"
-     inkscape:cx="70.961866"
+     inkscape:cx="-165.93657"
      inkscape:cy="214.89591"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
@@ -115,7 +118,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
