@@ -7,6 +7,8 @@ Material workshops:
 
 - [Mardown  / Git](https://dynamitestaff.github.io/R-workshops/MarkdownGit/MarkdownGit.html)
 
+- [Dynamical systems modeling](https://dynamitestaff.github.io/R-workshops/Modeling/syllabus/Modelling_Data_Part1.html)
+
 <!---
 - Web Data Collection
     - [Web scraping with R](https://dynamitestaff.github.io/R-workshops/Web_data_collection/tuto_scraping/tuto_scraping.html)
