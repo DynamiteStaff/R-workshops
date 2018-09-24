@@ -36,7 +36,14 @@ library(rvest)
 
 # Ethics, some elements of reflexion.
 
-bla bla Seb 
+In two words : 
+
+- Grey Zone ! Heavily dependent of your country.  
+- Text not so clear, but RGPD include **derogations** for researchers
+- Contact CNIL (France) or similar institute in your country
+
+In more than two words, a document writed for this school :
+https://hackmd.io/g9JrWURjTHyLr9EWQqKoiQ?both
 
 # A <img src='images/noun_Cat_549889.svg' width="40"> and <img src='images/noun_Mouse_549960.svg' width="40"> game (1)
 

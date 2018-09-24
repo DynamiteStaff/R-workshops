@@ -3,11 +3,13 @@ title: "Schelling"
 author: "CC&PC"
 date: "Summer School"
 output: html_document
-runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(reshape2)
+library(dplyr)
+library(ggplot2)
 ```
 
 ## Schelling Segregation Model
@@ -39,14 +41,13 @@ Household groups are then determined randomly :  the cell value is chosen betwee
 
 ```{r setupState}
 
-
 matrixSchellingState <-  function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pctRed ){
-
-matrixState <- matrix(NA,size,size)
-nbAgents <- floor(pctOccupied * size^2)
-householdCells <- sample(size ^ 2, nbAgents)
-matrixState[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
-return(matrixState)
+  
+  matrixState <- matrix(NA,size,size)
+  nbAgents <- floor(pctOccupied * size^2)
+  householdCells <- sample(size ^ 2, nbAgents)
+  matrixState[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
+  return(matrixState)
 }
 matrixState <-  matrixSchellingState(40,0.5,0.5, 0.5)
 ```
@@ -85,7 +86,6 @@ Starting from a matrix structure, this transformation is done by the `melt` func
 
 
 ```{r meltGGplot}
-library(reshape2)
 meltedState <- melt(matrixState, varnames = c("X","Y")) 
 head(meltedState,10)  #to see what it looks like and get the column names
 ```
@@ -94,7 +94,6 @@ head(meltedState,10)  #to see what it looks like and get the column names
 
 
 ```{r displayGGplot, fig.height=6, fig.width=6, warning =FALSE}
-library(ggplot2)
 # color definitions  
 colorMapping <- c("1"="red", "2"="blue") 
 
@@ -174,10 +173,9 @@ The `getgetneighbors(i,j)` transforms this portion in a more convenient format (
 Special cases of corner and border cells are considered having incomplete neighborhood.
 
 ```{r neighbors}
-library(dplyr)
 #to ensure the call to filter function is calling the dplyr version
 filter = dplyr::filter
-#same function but for a state in the long format
+
 meAndMyNeighbors <- function (state,i,j) {
   #this version doesn't suppose a square world, but a 9 Moore neighborhod
   neigh <-   filter(state, between(X,i-1,i+1) & between(Y,j-1,j+1) & !is.na(value))
@@ -192,6 +190,7 @@ getneighbors <- function(state, i,j){
   return(neighborhood)
 }
 ```
+
 
 
 
@@ -252,7 +251,8 @@ createMeltedSchellingState <- function(size, pctOccupied=.5, pctRed=0.5, pctBlue
   matState <-  matrixSchellingState(size, pctOccupied, pctRed, pctBlue)
   # Warning : melt destroy attr
   meltedState <-  melt(matState,varnames = c("X","Y"))
-  meltedState <-  updateHappiness(meltedState, tolerance  )
+  meltedState$happy <-  NA
+      meltedState <-  updateHappiness(meltedState, tolerance  )
   # we add an explicit ID of cells (row number), it will be useful
   meltedState$ID <- seq.int(nrow(meltedState))
   return(meltedState)
@@ -268,7 +268,7 @@ In our model, empty cells have a `NA`value.
 We create and maintain a subset of our meltedState, keeping track of the empty cells.
 
 
-```{r }
+```{r emptycellsUp}
 getEmptyCells <-  function(state){
   return(state %>%filter(is.na(value))  )
 }
@@ -295,7 +295,7 @@ We start by moving householders one at a time, via the `moveOne` function.
 ```{r moveOne}
 #we create another test environemment and get rid of the previous
 rm(meltTestEnv)
-stateEnv <- createMeltedSchellingState(10,pctOccupied = 0.8, tolerance=0.3)
+stateEnv <- createMeltedSchellingState(size = 10,pctOccupied = 0.8, tolerance=0.3)
 
 displayStateUnhappy(stateEnv)
 unhappy <-  getUnhappy(stateEnv)
@@ -305,7 +305,7 @@ numberOfEmpty <-  nrow(emptyCells)
 cat(numberOfEmpty , "\n") # has to be 20% of state size squared since pctOccupied is 80%
 
 moveOne <-  function(state, tolerance, followMover=F){
-  #take one unhappy householder 
+  #take one unhappy householder among unhappyhousholders
   unhappyHHs <-  getUnhappy(state)
   uhhh <- sample_n(unhappyHHs, 1)
   emptyCells <-  getEmptyCells(state)
@@ -331,6 +331,10 @@ moveOne <-  function(state, tolerance, followMover=F){
 ```
 
 
+Botice that **all** the state is updated after each move, that does the job , but perform a lot of useless updates since a vast majority of the state is not affected by the move of *one* householder. 
+
+
+
 To check the dynamic , we consider 3 plots. 
 First one is state before we move one householder.
 Next plot show the sampled householder with a red circle, and its destination(empty cell) with a green one.
@@ -342,31 +346,33 @@ stateEnv <- moveOne(stateEnv, 0.3, followMover = T)
 displayStateUnhappy(stateEnv)
 ```
 
-Notice that moving to a cell may update happiness around it, and around the previous householder location as well. 
 
 
 
 
 ## Simulation Loop
 
-Now that we have implemented one step of the model Dynamic , we can automate its execution in a loop, create some buttons and animate it in a `shiny` app (a library for GUI and reactive programming stuff)
+Now that we have implemented one step of the model Dynamic , we can automate its execution in a loop.
 
 
 ```{r loopsimu}
-step <- function(state, tolerance){
-  unhappy <-  getUnhappy(state, tolerance)
-  if (nrow(unhappy) == 0){
-    return(state)
-  }
-    state <- moveOne(state,tolerance)
-  return(state)
-}
 
 
 simulate <-  function(steps, state, tolerance){
   for (i in 1:steps){
-    state <-  step(state, tolerance)
+   
+        if (i %% 10 ==0) {
+      cat("step : ", i , "\n")
+    }
+    
+    if (nrow(getUnhappy(state)) == 0){
+      cat("Everybody is fine with their location\n")
+      break 
+    }
+    state <- moveOne(state,tolerance)
+
   }
+  return(state)
 }
 ```
 
@@ -375,30 +381,23 @@ simulate <-  function(steps, state, tolerance){
 Basically a simulation loop is a loop that repeat a simulation step a certain number of times or until a certain condition is reached. Here we chose to execute simulation steps a certain number of times (and do nothing in case everyone is happy)
 
 
-```{r, echo=FALSE}
-library(shiny)
-shinyApp(
-  ui = fluidPage(
-     actionButton("go", "Move one"),
-   plotOutput("plot")
-  ),
+## Example of experiment workflow
 
-  server = function(input, output) {
-    tolerance <-  0.3
-    state <-createMeltedSchellingState(20, 0.8, 0.5, 0.5,tolerance)  
-    currentState   <- eventReactive(input$go, {
-    state <-  step(state, tolerance)
-  })
+Now we have everything : state creation , simulation loop , measures and display.
+200 steps should be enough to see segregation appear (it may take some time to complete)
 
-  output$plot <- renderPlot({
-    currentplot <-  displayStateUnhappy(currentState())
-    currentplot
-  })  }
-  ,
-   options = list(height = 500)
- )
+```{r exp11, cache=TRUE}
+
+myExpTolerance <-  0.3
+s <-  createMeltedSchellingState(10,pctOccupied = 0.8,pctRed = 0.5, pctBlue = 0.5, tolerance= myExpTolerance)
+displayStateUnhappy(s)
+nrow(getUnhappy(s))
+s <-  simulate(steps= 200, state=s, tolerance = myExpTolerance)
+displayStateUnhappy(s)
+nrow(getUnhappy(s))
 ```
 
+This is loooooooooog . See at the end of the document why , and how to speed it up !
 
 
 # Measures
@@ -418,7 +417,6 @@ return(numberOfSimilar)
   
  
 globalSimilarityPct <-  function(state){
-  #res <-  state %>% rowwise() %>% transmute(ratioSim = nrow(getneighbors(.,X,Y)) / nrow(getSimilarNeighbors(.,X,Y)))
   res <-  state %>% rowwise() %>% transmute(nbSimNeigh = getSimilarNeighborsNumber(.,X,Y) , nbNeigh = nrow(getneighbors(.,X,Y)))
 
     return(sum(res$nbSimNeigh) / sum(res$nbNeigh))
@@ -446,57 +444,17 @@ globalunHappyPct(stateEnv)
 
 
 
-## Segregation measures
-
-
-We use a library called `oasisR` which implements a lot of segregation measures, provided that your state is given as a numeric matrix, so we have to convert our long-format state to an adapted format 
-
-
-```{r convertToMatrix}
-
-convert <-  function(state, nr, nc){
-  mat <- matrix(data = state$value, nrow = nr, ncol=nc)
-  return(mat)
-}
-convertToMatrix(state = stateEnv, 10,10)
-displayStateUnhappy(stateEnv)
-```
-
-### Duncan Segregation index
-
-
-```{r ISDuncan}
-library(OasisR)
-getDuncanSI <- function(state, nr, nc){
-  return(ISDuncan(state$value ) )
-}
-
-```
 
 
 
-### Morrill
-
-
-### Wong
-
-
-### Gorard
-
-
-### Gini 
-
-
-
-
-# Alterations 
+# Alterations
 
 Since schelling's segregation model is a simple model , a lot of *alterations* can be made :
 
 * Choice of location criteria
 * happiness evaluation
 * neighborhood sizes
-* number of groups 
+* number of groups
 * emptiness of cells
 * radius threshold when moving
 * rates of moving
@@ -504,51 +462,115 @@ Since schelling's segregation model is a simple model , a lot of *alterations* c
 
 Some of them can be madfe by changing parameters values, most of them requires some new code writing.
 
-
-##Exodus, movement of Jah people
-
-For now, we have moved householder one at a time. 
-The following code shows a way of moving as many householders as possible.
-
-Two cases : if there is enough enough empty cells to move unhappy householder , we sample in empty cells the adequate number of locations, otherwise , we sample in unhappy householders the number of empty cells.
-
-```{r moveSeveral}
+More efficient code is available in the `moreEfficientSchelling.R`file, with a multigroup version.
 
 
+For now we only show an optimization of the code in the `moveOne` function.
+For that we need helpers function to update the happyness of impacted househoulders after a move : their neighboorhood.
+These helper function are `meAndMyNeighborsByID`, `getneighborsByID` and `isHappyByID` , that use ID to "locate" householder in the state dataframe.
 
-moveSeveral <- function(state, tolerance) {
-  uHHHs <-  getUnhappy(state)
+
+```{r moveOptim}
+meAndMyNeighborsByID <- function (id,state) {
+  #only if id = nrow
+  i <-  state[id,"X"]
+  j <-  state[id,"Y"]
+  #this version doesn't suppose a square world, but a 9 Moore neighborhod
+  #neigh <-   filter(state, between(X,i-1,i+1) & between(Y,j-1,j+1) & !is.na(value))
+  neigh <-   filter(state, between(X,i-1,i+1) & between(Y,j-1,j+1))
+
+  return(neigh)
+}
+
+
+getneighborsByID <- function(id, state){
+  neighborhood <- meAndMyNeighborsByID(id, state)
+  #exclude the caller cell
+  neighborhood <- neighborhood[neighborhood$ID !=id,]
+  return(neighborhood)
+}
+
+isHappybyID <-  function(id, state, tolerance){
+  cell <-  filter(state, ID==id)
+  if (is.na(cell$value)){return(NA)}
+  neigh <- getneighborsByID(id,state)
+  numberOfDiff <-sum(cell$value!=neigh$value, na.rm = T)
+  happy <-  (numberOfDiff / nrow(neigh) ) < tolerance
+  return(happy)
+}
+
+
+
+
+
+moveOneFaster <-  function(state, tolerance, followMover=F){
+  #take one unhappy householder 
+  unhappyHHs <-  getUnhappy(state)
+  uhhh <- sample_n(unhappyHHs, 1)
+  uhhhID <-  uhhh$ID
+  uhhhvalue <-  uhhh$value
   emptyCells <-  getEmptyCells(state)
-  numberOfEmpty <-  nrow(getEmptyCells(state))
-  numberOfUnHappy <-  nrow(getUnhappy(state))
+  oneEmptyCell <-  sample_n(emptyCells,1)
+  emptyID <- oneEmptyCell$ID
   
-  # if there is more empty room than unhappy, we can move everyone in a single move
-    if (numberOfEmpty > numberOfUnHappy) {
-  futureOccupiedCells <-  sample_n(emptyCells, numberOfUnHappy)
   
-  #State has to be updated by swapping values of these two cells , ID is useful here
-  state[state$ID == emptyCells$ID, "value"] <- uHHHs$value
-  state[state$ID == uHHHs$ID, "value"] <- emptyCells$value
-  
-  #moving changes happiness, so we update the state
-  state <-  updateHappiness(state, tolerance)
-  
+  if (followMover){
+    pp <-  displayStateUnhappy(state)+
+      geom_point(data= uhhh, aes(X,Y),color="red", size = 8, alpha= 0.3)+
+      geom_point(data = oneEmptyCell, aes(X,Y),color="green", size = 8, alpha=0.3)
+    
+    print(pp)
   }
   
-  # if there is more unhappy than empty cells, we subset householders as futureMovers
-  if (numberOfEmpty < numberOfUnHappy) {
-  futureMovers <-  sample_n(unhappy, numberOfEmpty)
-  futureOccupiedCells <-  emptyCells
+  #State has to be updated  by swapping values of these two cells
+  state[emptyID,"value"] <- uhhhvalue
+  state[uhhhID,"value"] <- NA
   
-#State has to be updated by swapping values of these two cells , ID is useful here
-  state[state$ID == emptyCells$ID, "value"] <- futureMovers$value
-  state[state$ID == futureMovers$ID, "value"] <- emptyCells$value
+  #origin cell is no longer happy or unhappy since it's empty
+  state[uhhhID,"happy"] <- NA
+
+  #moving changes happiness of the destination neighborhood, so we update it
+  destNeigh <-  meAndMyNeighborsByID(id = emptyID,state)
+  state[destNeigh$ID,"happy"] <-  sapply(destNeigh$ID, FUN = isHappybyID, state=state, tolerance)
   
-  #moving changes happiness, so we update the state
-  state <-  updateHappiness(state, tolerance)
-  }
+  #state <-  updateHappiness(state, tolerance )
   return(state)
 }
 
+
+
+
+simulateFaster <-  function(steps, state, tolerance){
+  for (i in 1:steps){
+    if (i %% 200 ==0) {
+      cat("step : ", i , "\n")
+    }
+    unhappy <-  getUnhappy(state)
+    if (nrow(unhappy) == 0){
+      cat("Everybody is fine with their location\n")
+      break 
+    }
+    state <- moveOneFaster(state,tolerance)
+  }
+    return(state)
+}
+
+
 ```
+
+Now we should increase the size of the state , simulate longer,  and observe the result :
+
+
+```{r exp22, eval=FALSE}
+myExpTolerance <-  0.3
+s <-  createMeltedSchellingState(30,pctOccupied = 0.8,pctRed = 0.5, pctBlue = 0.5, tolerance= myExpTolerance)
+displayStateUnhappy(s)
+nrow(getUnhappy(s))
+s <-  simulateFaster(steps= 800, state=s, tolerance = myExpTolerance)
+displayStateUnhappy(s)
+nrow(getUnhappy(s))
+```
+
+Is it faster ?
+
 

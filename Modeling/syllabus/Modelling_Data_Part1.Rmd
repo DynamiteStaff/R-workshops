@@ -8,7 +8,7 @@ output: html_document
 ### Case study: urban segregation with scraped AirBnB data (from inside AirBnb or scrape it yourself)
 
 After loading packages...
-```{r setup, include=FALSE}
+```{r setup, eval=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(rmapzen)
@@ -156,7 +156,7 @@ https://github.com/dshkol/scratchpad/blob/master/content/post/2018-05-10-diversi
 # Diversity
 We define a measure of minority diversity (entropy) at the aggregate level of geographical units and define a segregation index as the deviation from the city-wide diversity value.
 
-```{r censusDiversityFunctions, include=FALSE}
+```{r censusDiversityFunctions, eval=FALSE}
 
 diversity_index <- function(cma) {
   
@@ -315,7 +315,7 @@ diversity_csd <- function(cma) {
 Let's apply these fonctions to get the diversity index for all CSD for all Canadian CMAS.
 (This chunk of code comes from @dshkol - Thanks!)
 
-```{r applyCensusDiversityFunctions, message=F, warning=F, include=F}
+```{r applyCensusDiversityFunctions, message=F, warning=F, eval=F}
 cmas <- list_census_regions("CA16") %>% filter(level == "CMA") %>% select(region, name, pop)
 
 cma_ei <- purrr::map_df(cmas$region, .f = diversity_csd) %>% 
@@ -328,7 +328,7 @@ cma_ei <- purrr::map_df(cmas$region, .f = diversity_csd) %>%
 
 We define a measure of minority segregation index as the deviation from the city-wide diversity value.
 
-```{r CensusSegregationFunctions, include=FALSE}
+```{r CensusSegregationFunctions, eval=FALSE}
 
 calc_h <- function(cma_obj) {
   cth <- cma_obj$ct %>% 
@@ -426,7 +426,7 @@ clean_names2 <- function (dfr) {
 And apply it to Canadial metropolises.
 (This chunk of code comes from @dshkol - Thanks!)
 
-```{r applyCensusSegregationFunctions, include=F}
+```{r applyCensusSegregationFunctions, eval=F}
 ############# compute segregation for all metros and plot comparison of index
 
 cma_seg <- purrr::map_df(cmas$region, .f = segregation_csd) %>% 
@@ -439,7 +439,7 @@ cma_seg <- purrr::map_df(cmas$region, .f = segregation_csd) %>%
 
 Now let's define a measure of segration which accounts for ordinal variables such as income, wealth or airbnb prices, with Reardon's ordinal measure of segregation (2009).
 
-```{r airbnbSegregationFunction, include=F}
+```{r airbnbSegregationFunction, eval=F}
 
 ############# Reardon segregation for AirBnB price per room
 cumulativeFrequency  <-  function(distribution){
@@ -563,7 +563,7 @@ city_data <-  subset(final, city %in% citynames)
 Let's retrieve the census minority data at the census tract and community area level:
 (This chunk of code comes from @dshkol - Thanks!)
 
-```{r selectCityInCensus, include=F}
+```{r selectCityInCensus, eval=F}
 cma.ct <- get_census("CA16", regions=list(CMA=censuscode), 
                      vectors = minority_vectors, level = "CT",
                      labels = "short", geo_format = NA)

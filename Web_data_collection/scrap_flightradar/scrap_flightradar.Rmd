@@ -339,12 +339,14 @@ Lucky guy/girl, do you see it ? Each `GET` query call an `aiport.json` file on t
 `https://api.flightradar24.com/common/v1/airport.json?code=bod&plugin[]=&plugin-setting[schedule][mode]=&plugin-setting[schedule][timestamp]=1537297562&page=1&limit=100&token=`
 
 If we decompose the query, we have :
+
 - an airport code : **bod**
 - a timestamp : **1537297562**
 - a page number : **1**
 - a limit by page : **100**
 
 Copy paste this url in your browser to see how the result json is structured. Insteresting data is located into schedule `result > response > airport > arrivals` : 
+
 - **item :** number of total items
 - **page :** actual page and number of page 
 - **timestamp :** date of capture
@@ -377,26 +379,66 @@ knitr::kable(filteredData, caption = "page 1 of arrival for BOD")
 
 - Get all pages of data by generating the correct query to API :)
 
-## Docker !
+## Docker containers !
+
+### Why ?
 
 This is the ultimate and probably the most complex part of this big tutorial.
 
-In real webscraping project, there are two possible use case : a one shoot harvest, or a daily/monthly/etc. harvest of data.
+In real webscraping project, there are two possible use case : 
 
-If you need to collect **one year of data on a daily basis**, you cannot use your personnel computer. You need to connect and run your from a distant server.
+- a one shoot data harvesting or  
+- a daily/monthly/etc. data harvesting.
 
-To be really really short on subject, Docker is a technology which encapsulate your software into an isolated (and if possible immutable) container on the top of your system. The concept is similar to virtual machine (VM), but more efficient.
+Take a very practical example, if you need to collect **one year of data on a daily basis** you cannot use your personnal computer. You need to connect and run your program from a distant server (somewhere on internet).
 
-Here we are, we use this Docker container technology to encapsulate a webscrapping script. After that you could save your and launch it on a webserver.
+### Docker ?
 
-There are three big step to understand in container lifecycle: 
+To be really really short on subject, [Docker](https://en.wikipedia.org/wiki/Docker_(software)) is a technology which encapsulate one or multiple software with all theirs dependencies into an isolated (and if possible immutable) container which run on top of any system interoperable with Docker tools (Window/Linux/Mac). You could run multiple isolated containers (A, B , ...), with capacity to exchange informations using a common dedicated local network, on the same machine. 
 
-- We describe the composition of an **image** into a **Dockerfile** file using special Docker syntax. It's like a recipe into cookbook. For example, you could find lot of recipes on this site : DockerHub.
+<center>
+<img src='images/docker_app.png'/>
+</center>
 
-- Next, like a recipe in the real life, you need to concretize this recipe into some delicious cake. Image need to be built before usage. 
+It was a very interesting technology because **if you develop a program in a container on your local machine, it works on any server compatible with Docker.** If you know the concept of [Virtual Machine (VM)](https://en.wikipedia.org/wiki/Virtual_machine), the idea is the same, but Docker is a **more efficient** technology (see this [comparison](https://www.docker.com/resources/what-container) on Docker official documentation).
 
-- Finally, you run the builted image.
+<center>
+<img src='images/docker_image.png'/>
+</center>
 
+Lena create an independent container which contain : 
+
+- the software
+- the dependencies, libraries, etc. 
+- the data collected or needed by software
+
+Two use case are possible : 
+
+- If Lena want to share container `MyContainer` to paul, she (command `docker export --output myContainer.tar myContainer`) the container on a USB key. Later, Paul copy and load the container `MyContainer`on his machine (command `docker load`).   
+
+- If Lena want to run `MyContainer` container on some server on the web which contain docker program, she export the container(command `docker --output myContainer.tar myContainer`), copy this container on the server (using FTP protocol for example) and load this container (command `docker load --input myContainer.tar`) on the server.  
+
+**Be careful 1 ** if your container contain a Volume you need a special procedure to migrate it. 
+
+**Be careful 2 ** If your container need another container to work, you need to export both.
+
+Here we are, we use this **[Docker](https://www.docker.com/) technology** to encapsulate our webscrapping script into one **portable** container. After that you could save yours and launch it on any webserver which run Docker.
+
+There are three big step to understand in containers lifecycle: 
+
+- First, we describe the composition of an **image** into a **Dockerfile** file using a special Docker syntax. **It's like a recipe into cookbook.** For example, you could find lot of recipes for general software on this site : [DockerHub](https://hub.docker.com/explore/).
+
+- Next, like a recipe in the real life, you need to concretize this recipe into some delicious cake. Image need to be built before usage. From an **Image/Recipe of a cake** we create a **Container/Cake**
+
+- Finally, you **run** the builted image.
+
+In this tutorial, we give you the corresponding `Dockerfile` which contain the recipe to build a `Container` ready to scrape the flightradar website. All script to do that are in `docker-scripts` folder.
+
+At the end of the tutorial you have this architecture, with two container (RSelenium and Flightscrapradar) which communicate to scrap data on flightradar website.
+
+<center>
+<img src='images/docker_Reselenium.png'/>
+</center>
 
 ### Linux way
 
@@ -452,7 +494,7 @@ The building of this image take lot of times (ten minutes), this is due to the h
 docker build . --tag=rflightscraps
 ```
 
-**LAUNCH IMAGE**
+**LAUNCH Container**
 
 a) Using a **binded volume**, this is the easiest way actually. Open your terminal, go to the folder of your script. Create a new folder named `localbackup` and run the container `rflightscraps` with correct path.
 
@@ -489,22 +531,23 @@ docker run --mount type=volume,source=myDataVolume,destination=/usr/local/src/fl
 Export data  : 
 
 - Using a `alpine` image, we mount the named volume (`myDataVolume`) to a `/alpine_data` folder inside the `alpine` container.
-
 - Then, we create a new folder inside the `alpine` container named `/alpine_backup`.
-
 - We then create an archive containing the contents of the `/alpine_data` folder and we store it inside the `/alpine_backup` folder (inside the container).
-
 - We also mount the `/alpine_backup` folder from the container to the docker host (your local machine) in a folder named `/local_backup` inside the current directory.
-
 
 ```docker run --rm -v myDataVolume:/alpine_data -v $(pwd)/local_backup:/alpine_backup alpine:latest tar cvf /alpine_backup/scrap_data_"$(date '+%y-%m-%d')".tar /alpine_data```
 
+**EXPORT Containers**
 
-### Windows way
+<center>
+<img src='images/docker_exportServer.png'/>
+</center>
 
-Thre are two way to install Docker for windows, a new way (https://docs.docker.com/docker-for-windows/install/) and an old way. For this tutorial we use the the old way due to better compatibility.
+### Windows and Mac way
 
-Install Docker Tools for windows using the `DockerToolbox.exe` file. You could find the official documenation is available [here]( https://docs.docker.com/toolbox/toolbox_install_windows/)
+Thre are two way to install Docker for Windows and Mac, a new way [Windows](https://docs.docker.com/docker-for-windows/) / [Mac](https://docs.docker.com/docker-for-mac/) and an old way. For this tutorial we use the the old way due to better compatibility.
+
+Install Docker Tools for windows using the `DockerToolbox.exe` (or `.dmg` for mac) file. You could find the official documentation is available here [Windows]( https://docs.docker.com/toolbox/toolbox_install_windows/) and [Mac]()https://docs.docker.com/toolbox/toolbox_install_mac/
 
 <img src='images/SetupDockerToolbox.jpg'/>
 
@@ -559,10 +602,9 @@ The building of this image take lot of times (ten minutes), this is due to the h
 docker build . --tag=rflightscraps
 ```
 
-**LAUNCH IMAGE**
+**LAUNCH container**
 
 We use a **binded volume**, this is the easiest way actually. 
-
 
 First, create a new folder named `localbackup` into your users folder on windows : `C:\Users\yourname` 
 After that, change the path by yours in this command and run it.
@@ -576,3 +618,4 @@ The end, close the session !
 ```{r, message=FALSE}
 remDr$close()
 ```
+

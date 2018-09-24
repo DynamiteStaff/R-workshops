@@ -1,0 +1,454 @@
+---
+title: "SpatialSchellingToronto"
+author: "PC & CC"
+date: "23 septembre 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Library loading
+We load a bunch of libraries
+```{r libload }
+library(sf)
+library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
+library(ineq)
+library(cancensus)
+library(cancensusHelpers)
+```
+
+## Getting Toronto  
+Toronto data is available as a `Rdata` object, at the root of the modeling directory, we load it. 
+It's a `sf` object, i.e. a dataframe , with a geometry special column for each row.
+
+
+```{r toronto }
+load("cityTractsWithPopAndVacancy.RData")
+
+mytoronto <-  na.omit(toronto_tr)
+tractIDS <-  as.character(unique(mytoronto$GeoUID))
+mytoronto$popSchelling <-  NA
+
+```
+
+Observe that two objects have spawned in your memory : "toronto_tr" and "vancouver_tr".
+We will work on Toronto , so we got rid of NA values that can persist in the data object, 
+we keep tracts IDs in a list and initialize a simulated population column.
+
+### State Creation
+
+State is no longer a square matrix, it will be the tracts of Toronto.
+First we check the aspect of the spatial object `mytoronto`, 
+
+```{r stateCreationPlot}
+
+ptor  <-  ggplot(mytoronto) +
+  geom_sf()
+ptor
+``` 
+
+
+
+We need some categories of househoulders (let's say 4), their values (for now , they are integers) and their proportion.
+We define a colorMapping fort these groupes, and check that they sum up to 1 .
+
+```{r stateCreation}
+
+nbgroups <-  4
+groupValues <-  seq.int(from = 1, to=nbgroups)
+colorMapping <-  brewer.pal(nbgroups,"Dark2")
+pctList <- c(0.6, 0.1, 0.1, 0.1)
+pctList %>%  sum
+```
+
+
+The state will be a dataframe where :
+
+  *  each line is a householder
+  * the group of the householder is stored in the `value` column
+  * `localisation` column is the tract where the householder currently lives
+  * `ID` is (surprinsigly) an ID 
+  
+Householders values are sampled accroding to the proportion list, and are spatialized in tracts according to ther relative population weights of the tracts.  
+
+```{r stateCreationFunc}
+
+genSchellingTractState <-  function(popSize,  mytoronto, pctList, groupValues){
+  #every ID of tortonto tracks
+  tractIDS <-  unique(mytoronto$GeoUID)
+  #toronto total population to get tract relative population weights
+  popTotal <-  sum(mytoronto$Population)
+  
+  #value is sampled according to given proportoion
+  value <- sample(groupValues, size = popSize,replace = T, prob = pctList)
+  
+  # localisation is sampled according to tracts populations weights 
+  localisation <-  as.character(sample(tractIDS, size= popSize , replace = T , prob= mytoronto$Population / popTotal ))
+  ID <-  seq.int(popSize)
+  happy <-  NA
+  
+  #creation of the dataframe
+  res <- data.frame(ID,localisation,value, happy, stringsAsFactors = F)
+return(res)
+  }
+
+
+s <-  genSchellingTractState(10000,mytoronto,pctList, groupValues)
+#to see what it looks like
+head(s, 10)
+```
+
+
+### Happiness Update of One Householder
+
+We first need to define if an householder is fine with the tract he lives in.
+To do that, we have to count the number of pepole with a different `value`. 
+Same as before , if the ratio of different people vs. total population of the tract is below the `tolerance` threshold, the householder is considered unhapppy.
+This case is more simple than the matrix one, because the beighborhood is simply the people of the tract.
+
+
+```{r happyHH}
+
+isHappyInTract <-  function (ID, state, tolerance){
+  hhLoc <-  state[ID,"localisation"]
+  hhValue <-  state[ID, "value"]
+  
+  #neighbourhood
+  neigh <-  state %>%  filter(localisation == hhLoc) 
+  
+  numberOfDiff <-sum(hhValue!=neigh$value, na.rm = T)  
+  happy <-  (numberOfDiff / nrow(neigh) ) < tolerance
+  return(happy)  
+}
+```
+
+#### Happiness update of the whole state
+
+To update the whole state's happiness we could apply the previous function on every line of the state dataframe.
+
+```{r happyState}
+updateHappiness <- function(state, tolerance){
+  state$happy <-  sapply(state$ID, FUN = isHappyInTract, state=state, tolerance = 0.3)
+  return(state)
+}
+```
+
+This has to be done at intialization but afterwards , during simulation , there is no need to update everybody's happiness, as a lot of householders won't be affeceted by the move of a householder from a tract to another.
+To speed up this update, we specialize a function to update the happiness of a single tract. 
+
+```{r happySingleTract}
+updateHappinessOftract <- function(tract, state, tolerance){
+    state[state$localisation == tract,]$happy <-  sapply(state[state$localisation == tract,]$ID, FUN = isHappyInTract, state=state, tolerance = 0.3)
+  return(state)
+}
+```
+
+
+Finally we make a "getter" function to return unhappyHouseholders.
+```{r getUnhappy}
+getUnhappy <-  function(state){
+  return(filter(state, !happy))
+}
+```
+
+## Dynamics 
+
+Dynamics are similar : we sample unhappy householders, and change its localisation to another one, taken at random (provided it has some spare room). For now we make the hypothesis that every tract can welcome the total population,  vacancy will be taken into account here. 
+
+```{r move}
+moveOne <-  function(state, tolerance, tractIDS) {
+  if (nrow(getUnhappy(state)) == 0) {
+    cat("everyone happy \n")
+    return(state)
+  }
+  
+  unhappyHHs <-  getUnhappy(state)
+  #take one unhappy householder
+  uhhhID <- sample(unhappyHHs$ID, 1)
+  #take one tract at random
+  destiTract <-  sample(tractIDS, 1)
+  origTract <-  state[uhhhID, "localisation"]
+  
+  #the localisation change
+  state[uhhhID, "localisation"] <-  destiTract
+  
+  #only the two concerned tracts will see their happiness changed by the move of the householder 
+  state <-  updateHappinessOftract(origTract, state, tolerance)
+  state <-  updateHappinessOftract(destiTract, state, tolerance)
+  
+  return(state)
+}
+```
+
+
+### Simulation Loop
+same as usual , we loop on the `moveOne` function, checking at each step if there is still somme unhappy householders to move.
+
+```{r loop}
+simulate <-  function(steps, state, tolerance){
+  for (i in 1:steps){
+    if (i %% 200 ==0) {
+      cat("step : ", i , "\n")
+    }
+    
+    if (nrow(getUnhappy(state)) == 0){
+      cat("Everybody is fine with their location\n")
+      break 
+    }
+    state <- moveOne(state,tolerance, tractIDS)
+  }
+  return(state)
+}
+```
+
+### Helpers functions
+
+
+Setup function is a commodity function to intialize the simulation state.
+```{r setupState}
+setupState <-  function(popSize, mytoronto, pctList, groupValues, tolerance){
+  s <-  genSchellingTractState(10000,mytoronto,pctList, groupValues )
+  s <- updateHappiness(s,tolerance )
+  return(s)  
+}
+```
+
+
+### First experiment
+We have everything to run a first simple simulation 
+
+```{r exp1}
+nbgroups <-  4
+groupValues <-  seq.int(from = 1, to=nbgroups)
+pctList <- c(0.6, 0.1, 0.1, 0.2)
+tolerance <-  0.3
+
+s <-  setupState(10000, mytoronto,pctList,groupValues, tolerance)
+nrow(getUnhappy(s))
+s <-  simulate(200,s, tolerance)
+nrow(getUnhappy(s))
+
+```
+## Measures 
+
+We adapt previous measures of unhappy percentage  to the case of tracts , and we introduce the Theil Entropy taken from `ineq` library.
+
+```{r measures}
+
+pctUnHappybyTract <-  function(tract, state){
+  nbHH <- nrow(state[state$localisation == tract,]) 
+  nbUHHH <-  sum(state[state$localisation == tract,"happy"], na.rm = T)
+  return(nbUHHH / nbHH)
+}
+
+theilEntropyBytract <-  function(tract,state){
+  return(ineq(state[state$localisation == tract, "value"] , type = "Theil", na.rm = T))
+}
+
+
+theilEntropy <-  function(state){
+  return(ineq(state$value, type = "Theil", na.rm = T))
+}
+ 
+# test on the current state 
+mytoronto$pctUnhappy <- sapply(tractIDS, FUN = pctUnHappybyTract, state=s )
+mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state=s )  
+
+
+updateTractPop <-  function(tract, state){
+  return(nrow(state[state$localisation==tract,  ]) )
+}
+```
+
+This function updates every tract measures in the toronto object
+
+```{r updateMeasures}
+updateMeasuresToronto <-  function(mytoronto, currentState){
+  mytoronto$pctUnhappy <- sapply(tractIDS, FUN = pctUnHappybyTract, state=currentState )
+  mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state=currentState )  
+
+  theilE <- theilEntropy(currentState)
+  #popTot <-  nrow(currentState)
+  #mytoronto$popSchelling <- sapply(tractIDS, FUN= updateTractPop, state=currentState)
+  #grouppedState <-  currentState %>%  group_by(factor(localisation)) %>%  tally()
+  #mytoronto$theilGap <- mytoronto$popSchelling*(theilE - mytoronto$theil) / (theilE * popTot)
+  mytoronto$theilGap <- theilE - mytoronto$theil
+  return(mytoronto)
+}
+```
+
+
+### Display of measures on a map
+
+Some functions to display the measures in choropleth maps
+
+```{r display}
+
+displayTheil <-  function(mytoronto, state){
+  mytoronto <-  updateMeasuresToronto(mytoronto, state)
+  ptor  <-  ggplot(mytoronto) +
+    geom_sf(aes(fill=theil))
+  return(ptor)
+}
+displayPctUnhappy <-  function(mytoronto, state){
+  mytoronto <-  updateMeasuresToronto(mytoronto, state)
+  ptor  <-  ggplot(mytoronto) +
+    geom_sf(aes(fill=pctUnhappy))
+  return(ptor)
+}
+displayTheilGap <-  function(mytoronto, state){
+  mytoronto <-  updateMeasuresToronto(mytoronto, state)
+  ptor  <-  ggplot(mytoronto) +
+    geom_sf(aes(fill=theilGap))+
+    scale_fill_gradient2()
+  return(ptor)
+}
+```
+
+
+## Final experiment
+
+This what a basic workflow of experiment would look like
+
+```{r exp2, cache=TRUE}
+nbgroups <-  4
+groupValues <-  seq.int(from = 1, to=nbgroups)
+colorMapping <-  brewer.pal(nbgroups,"Dark2")
+pctList <- c(0.6, 0.1, 0.1, 0.2)
+pctList %>%  sum
+tolerance <- 0.3
+
+s <-  setupState(100000,mytoronto,pctList, groupValues)
+nrow(getUnhappy(s))
+displayPctUnhappy(mytoronto,s)
+s <-  simulate(1000,s, tolerance)
+nrow(getUnhappy(s))
+displayPctUnhappy(mytoronto,s)
+displayTheilGap(mytoronto,s)
+```
+
+
+## Taking vacancy into account 
+
+
+For now , vacancy of tracts was not taken into account.
+We have to create  new columns to keep track of empty households in toronto, and simulated population in each tract.
+
+```{r vacancyUpdate}
+mytoronto$popSchelling <-  NA
+vacancypct <-0.03 
+mytoronto$emptyHouseholds <-   round(vacancypct   * mytoronto$Households)
+
+
+```
+
+We now have to update the `moveOne` function to update the emptyhouseholds  when someone moves.
+
+```{r moveONeUpdate}
+
+
+moveOne <-  function(state, tolerance, mytoronto){
+  if (nrow(getUnhappy(state))==0){
+    cat("evryone happy \n")
+    return(state)
+  }
+  
+  #take one unhappy householder 
+  unhappyHHs <-  getUnhappy(state)
+  uhhhID <- sample(unhappyHHs$ID, 1)
+  
+  #take one tract with free space 
+  tractIDSfree <-  mytoronto[mytoronto$emptyHouseholds >0,"GeoUID" ]  
+  destiTract <-  sample(tractIDSfree$GeoUID, 1)
+  
+  origTract <-  state[uhhhID,"localisation"]
+  
+  #the localisation of the housholder change
+  state[uhhhID,"localisation"] <-  destiTract
+  
+  #number of empty housholds have to be updated
+  mytoronto[mytoronto$GeoUID==destiTract,]$emptyHouseholds <-    mytoronto[mytoronto$GeoUID==destiTract,]$emptyHouseholds -1
+  mytoronto[mytoronto$GeoUID==origTract,]$emptyHouseholds <-  mytoronto[mytoronto$GeoUID==origTract,]$emptyHouseholds +1
+  
+  
+  #happiness update in concerned tracts
+  state <-  updateHappinessOftract(origTract,state, tolerance )
+  state <-  updateHappinessOftract(destiTract,state, tolerance )
+  
+  
+  return(state)
+}
+
+```
+
+The `simulate ` function has also to be updated, since it calls `moveOne`.
+Therer is a lot of commented code , that is prepared for logging measures over time. We will add accumulators if we have time !
+
+```{r simulateUpdate}
+simulate <-  function(steps, state, tolerance, mytoronto, logMeasures=F){
+  for (i in 1:steps){
+    if (i %% 200 ==0) {
+      cat("step : ", i , "\n")
+      cat(nrow(getUnhappy(state)), "unhappy housholders \n")
+    }
+    
+    if (nrow(getUnhappy(state)) == 0){
+      cat("Everybody is fine with their location\n")
+      break 
+    }
+    state <- moveOne(state,tolerance,mytoronto)
+    # if (logMeasures){
+    #   
+    #   mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state )  
+    #   theilE <- theilEntropy(state)
+    #   mytoronto$theilGap <- theilE - mytoronto$theil
+    #   #notice the tricky super affectation <<- to acces global variable outside the scope of the function
+    #   stepsACC <<-  append(stepsACC, i)
+    #   NbunhappyAcc <<-  append( NbunhappyAcc, nrow(getUnhappy(state)))
+    #   absTheilGapSumAcc <<-  append(absTheilGapSumAcc, sum(abs(mytoronto$theilGap),na.rm = T))
+    # }
+    
+    
+      }
+  return(state)
+}
+
+```
+
+## Final workflow
+
+We gather everything to setup a state and launch a simulation
+```{r exp3}
+nbgroups <-  4
+groupValues <-  seq.int(from = 1, to=nbgroups)
+colorMapping <-  brewer.pal(nbgroups,"Dark2")
+pctList <- c(0.6, 0.1, 0.1, 0.2)
+tolerance <-  0.3
+
+s <-  setupState(10000, mytoronto,pctList,groupValues, tolerance) 
+mytoronto <-  updateMeasuresToronto(mytoronto,s)
+nrow(getUnhappy(s))
+sum(mytoronto$emptyHouseholds)
+s <-  simulate(1000,s, tolerance, mytoronto)
+nrow(getUnhappy(s))
+sum(mytoronto$emptyHouseholds)
+displayTheilGap(mytoronto,s)
+```
+
+You can notice that the number of emptyhousholders remains constant (that's good) and the number of unhappy householders can decrease but also increase sometimes (that's normal : when someone turn unhappy in a tract, every person of the same group turns unhappy too! ).
+
+To follow its evolutions, we have to create some accumulators that will store measures alues along the simulation. Maybe later, but the code in the `moveOne` function is ready to be uncommented to fille these accumulators. 
+
+```{r accu}
+
+```
+
+
+###
+
+
+

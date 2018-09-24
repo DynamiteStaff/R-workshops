@@ -3,12 +3,16 @@ library(ggplot2)
 library(dplyr)
 library(RColorBrewer)
 library(ineq)
+library(cancensus)
+library(cancensusHelpers)
 
 load("cityTractsWithPopAndVacancy.RData")
 
 mytoronto <-  na.omit(toronto_tr)
 tractIDS <-  as.character(unique(mytoronto$GeoUID))
 mytoronto$popSchelling <-  NA
+vacancypct <-0.03 
+mytoronto$emptyHouseholds <-   round(vacancypct   * mytoronto$Households)
 
 
 ptor  <-  ggplot(mytoronto) +
@@ -24,12 +28,12 @@ pctList %>%  sum
 
 
 
-popSize <-  10000
 
-
-genSchellingTractState <-  function(popSize,  mytoronto){
+genSchellingTractState <-  function(popSize,  mytoronto, vacancypct){
   tractIDS <-  unique(mytoronto$GeoUID)
   popTotal <-  sum(mytoronto$Population)
+  
+  mytoronto$emptyHouseholds <-   round(vacancypct   * mytoronto$Households)
   
   #value are sampled according to percentage
   value <- sample(groupValues, size = popSize,replace = T, prob = pctList)
@@ -44,7 +48,7 @@ return(res)
   }
 
 
-s <-  genSchellingTractState(10000,mytoronto)
+s <-  genSchellingTractState(10000,mytoronto, vacancypct)
 
 isHappyInTract <-  function (ID, state, tolerance){
   hhLoc <-  state[ID,"localisation"]
@@ -82,7 +86,7 @@ getUnhappy <-  function(state){
 
 
 
-moveOne <-  function(state, tolerance, tractIDS){
+moveOne <-  function(state, tolerance, mytoronto){
   if (nrow(getUnhappy(state))==0){
     cat("evryone happy \n")
     return(state)
@@ -91,20 +95,26 @@ moveOne <-  function(state, tolerance, tractIDS){
     #take one unhappy householder 
   unhappyHHs <-  getUnhappy(state)
   uhhhID <- sample(unhappyHHs$ID, 1)
-  destiTract <-  sample(tractIDS, 1)
+  
+  #take one tract with free space 
+  tractIDSfree <-  mytoronto[mytoronto$emptyHouseholds >0,"GeoUID" ]  
+  destiTract <-  sample(tractIDSfree$GeoUID, 1)
+  
+  
   origTract <-  state[uhhhID,"localisation"]
+
 
   #the localisation change
   state[uhhhID,"localisation"] <-  destiTract
-   
+  #number of empty housholds have to be updated
+  mytoronto[mytoronto$GeoUID==destiTract,]$emptyHouseholds <-    mytoronto[mytoronto$GeoUID==destiTract,]$emptyHouseholds -1
+  mytoronto[mytoronto$GeoUID==origTract,]$emptyHouseholds <-  mytoronto[mytoronto$GeoUID==origTract,]$emptyHouseholds +1
   
+  
+  #happiness update in concerned tracts
   state <-  updateHappinessOftract(origTract,state, tolerance )
-   state <-  updateHappinessOftract(destiTract,state, tolerance )
-    
-  #state <-  updateHappiness(state,tolerance)
-  if(isHappyInTract(uhhhID,state, tolerance)){
-    #cat("happy !!! \n")
-  }
+  state <-  updateHappinessOftract(destiTract,state, tolerance )
+
     
       return(state)
 }
@@ -112,7 +122,7 @@ moveOne <-  function(state, tolerance, tractIDS){
 
 
 
-simulate <-  function(steps, state, tolerance){
+simulate <-  function(steps, state, tolerance, mytoronto, logMeasures=F){
   for (i in 1:steps){
     if (i %% 200 ==0) {
       cat("step : ", i , "\n")
@@ -122,26 +132,59 @@ simulate <-  function(steps, state, tolerance){
       cat("Everybody is fine with their location\n")
       break 
     }
-    state <- moveOne(state,tolerance, tractIDS)
-  }
+    state <- moveOne(state,tolerance,mytoronto)
+    if (logMeasures){
+      
+      mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state )  
+      theilE <- theilEntropy(state)
+      mytoronto$theilGap <- theilE - mytoronto$theil
+      #notice the tricky super affectation <<- to acces global variable outside the scope of the function
+      stepsACC <<-  append(stepsACC, i)
+      NbunhappyAcc <<-  append( NbunhappyAcc, nrow(getUnhappy(state)))
+      absTheilGapSumAcc <<-  append(absTheilGapSumAcc, sum(abs(mytoronto$theilGap),na.rm = T))
+    }
+    cat(nrow(getUnhappy(state)), "\n")
+    
+      }
   return(state)
 }
 
 #setup function
 
-setupState <-  function(popSize, mytoronto){
-  s <-  genSchellingTractState(10000,mytoronto)
+setupState <-  function(popSize, mytoronto, vacancypct){
+  s <-  genSchellingTractState(10000,mytoronto,vacancypct)
   s <- updateHappiness(s,tolerance )
-  return(s)  
+  mytoronto <-  updateMeasuresToronto(mytoronto)
+    return(s)  
+}
+
+
+## measures accumulators
+stepsACC <-  c()
+NbunhappyAcc <-  c()
+absTheilGapSumAcc <-  c()
+
+resetAccumulators <-  function(){
+  stepsACC <<-  c()
+  NbunhappyAcc <<-  c()
+  absTheilGapSumAcc <<-  c()
+  
 }
 
 tolerance <-  0.3
-s <-  genSchellingTractState(10000,mytoronto)
+s <-  genSchellingTractState(10000,mytoronto, vacancypct)
 s <- updateHappiness(s,tolerance )
+mytoronto <-  updateMeasuresToronto(mytoronto,s)
 nrow(getUnhappy(s))
-s <-  simulate(1000,s, tolerance)
+sum(mytoronto$emptyHouseholds)
+s <-  simulate(200,s, tolerance, mytoronto, logMeasures = T)
 nrow(getUnhappy(s))
+sum(mytoronto$emptyHouseholds)
 
+plot(stepsACC, NbunhappyAcc)
+
+
+mytoronto$theilGap
 
 #measures 
 
@@ -171,31 +214,28 @@ updateTractPop <-  function(tract, state){
 }
 
 
-updateMeasures <-  function(mytoronto, currentState){
+updateMeasuresToronto <-  function(mytoronto, currentState){
   mytoronto$pctUnhappy <- sapply(tractIDS, FUN = pctUnHappybyTract, state=currentState )
   mytoronto$theil <-  sapply(tractIDS, FUN = theilEntropyBytract, state=currentState )  
   theilE <- theilEntropy(currentState)
-  popTot <-  nrow(currentState)
-  mytoronto$popSchelling <- sapply(tractIDS, FUN= updateTractPop, state=currentState)
-  grouppedState <-  currentState %>%  group_by(factor(localisation)) %>%  tally()
-  mytoronto$theilGap <- mytoronto$popSchelling*(theilE - mytoronto$theil) / (theilE * popTot)
+  mytoronto$theilGap <- theilE - mytoronto$theil
 return(mytoronto)
 }
 
 displayTheil <-  function(mytoronto, state){
-  mytoronto <-  updateMeasures(mytoronto, state)
+  mytoronto <-  updateMeasuresToronto(mytoronto, state)
   ptor  <-  ggplot(mytoronto) +
     geom_sf(aes(fill=theil))
   return(ptor)
 }
 displayPctUnhappy <-  function(mytoronto, state){
-  mytoronto <-  updateMeasures(mytoronto, state)
+  mytoronto <-  updateMeasuresToronto(mytoronto, state)
   ptor  <-  ggplot(mytoronto) +
     geom_sf(aes(fill=pctUnhappy))
   return(ptor)
 }
 displayTheilGap <-  function(mytoronto, state){
-  mytoronto <-  updateMeasures(mytoronto, state)
+  mytoronto <-  updateMeasuresToronto(mytoronto, state)
   ptor  <-  ggplot(mytoronto) +
     geom_sf(aes(fill=theilGap))+
     scale_fill_gradient2()
@@ -203,11 +243,12 @@ displayTheilGap <-  function(mytoronto, state){
 }
 
 
-s <-  setupState(100000,mytoronto)
+s <-  setupState(100000,mytoronto,vacancypct)
 nrow(getUnhappy(s))
 displayPctUnhappy(mytoronto,s)
 s <-  simulate(1000,s, tolerance)
 nrow(getUnhappy(s))
 displayPctUnhappy(mytoronto,s)
 displayTheilGap(mytoronto,s)
+
 
