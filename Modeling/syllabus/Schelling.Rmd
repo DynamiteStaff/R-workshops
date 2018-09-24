@@ -41,12 +41,12 @@ Household groups are then determined randomly :  the cell value is chosen betwee
 
 
 matrixSchellingState <-  function(size, pctOccupied=.5, pctRed=0.5, pctBlue=1-pctRed ){
-
-matrixState <- matrix(NA,size,size)
-nbAgents <- floor(pctOccupied * size^2)
-householdCells <- sample(size ^ 2, nbAgents)
-matrixState[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
-return(matrixState)
+  
+  matrixState <- matrix(NA,size,size)
+  nbAgents <- floor(pctOccupied * size^2)
+  householdCells <- sample(size ^ 2, nbAgents)
+  matrixState[householdCells] <-  sample(c(1,2), nbAgents, replace = T, prob = c(pctRed,pctBlue))
+  return(matrixState)
 }
 matrixState <-  matrixSchellingState(40,0.5,0.5, 0.5)
 ```
@@ -177,7 +177,7 @@ Special cases of corner and border cells are considered having incomplete neighb
 library(dplyr)
 #to ensure the call to filter function is calling the dplyr version
 filter = dplyr::filter
-#same function but for a state in the long format
+
 meAndMyNeighbors <- function (state,i,j) {
   #this version doesn't suppose a square world, but a 9 Moore neighborhod
   neigh <-   filter(state, between(X,i-1,i+1) & between(Y,j-1,j+1) & !is.na(value))
@@ -192,6 +192,7 @@ getneighbors <- function(state, i,j){
   return(neighborhood)
 }
 ```
+
 
 
 
@@ -295,7 +296,7 @@ We start by moving householders one at a time, via the `moveOne` function.
 ```{r moveOne}
 #we create another test environemment and get rid of the previous
 rm(meltTestEnv)
-stateEnv <- createMeltedSchellingState(10,pctOccupied = 0.8, tolerance=0.3)
+stateEnv <- createMeltedSchellingState(size = 10,pctOccupied = 0.8, tolerance=0.3)
 
 displayStateUnhappy(stateEnv)
 unhappy <-  getUnhappy(stateEnv)
@@ -305,7 +306,7 @@ numberOfEmpty <-  nrow(emptyCells)
 cat(numberOfEmpty , "\n") # has to be 20% of state size squared since pctOccupied is 80%
 
 moveOne <-  function(state, tolerance, followMover=F){
-  #take one unhappy householder 
+  #take one unhappy householder among unhappyhousholders
   unhappyHHs <-  getUnhappy(state)
   uhhh <- sample_n(unhappyHHs, 1)
   emptyCells <-  getEmptyCells(state)
@@ -418,7 +419,6 @@ return(numberOfSimilar)
   
  
 globalSimilarityPct <-  function(state){
-  #res <-  state %>% rowwise() %>% transmute(ratioSim = nrow(getneighbors(.,X,Y)) / nrow(getSimilarNeighbors(.,X,Y)))
   res <-  state %>% rowwise() %>% transmute(nbSimNeigh = getSimilarNeighborsNumber(.,X,Y) , nbNeigh = nrow(getneighbors(.,X,Y)))
 
     return(sum(res$nbSimNeigh) / sum(res$nbNeigh))
@@ -446,46 +446,6 @@ globalunHappyPct(stateEnv)
 
 
 
-## Segregation measures
-
-
-We use a library called `oasisR` which implements a lot of segregation measures, provided that your state is given as a numeric matrix, so we have to convert our long-format state to an adapted format 
-
-
-```{r convertToMatrix}
-
-convert <-  function(state, nr, nc){
-  mat <- matrix(data = state$value, nrow = nr, ncol=nc)
-  return(mat)
-}
-convertToMatrix(state = stateEnv, 10,10)
-displayStateUnhappy(stateEnv)
-```
-
-### Duncan Segregation index
-
-
-```{r ISDuncan}
-library(OasisR)
-getDuncanSI <- function(state, nr, nc){
-  return(ISDuncan(state$value ) )
-}
-
-```
-
-
-
-### Morrill
-
-
-### Wong
-
-
-### Gorard
-
-
-### Gini 
-
 
 
 
@@ -504,51 +464,5 @@ Since schelling's segregation model is a simple model , a lot of *alterations* c
 
 Some of them can be madfe by changing parameters values, most of them requires some new code writing.
 
-
-##Exodus, movement of Jah people
-
-For now, we have moved householder one at a time. 
-The following code shows a way of moving as many householders as possible.
-
-Two cases : if there is enough enough empty cells to move unhappy householder , we sample in empty cells the adequate number of locations, otherwise , we sample in unhappy householders the number of empty cells.
-
-```{r moveSeveral}
-
-
-
-moveSeveral <- function(state, tolerance) {
-  uHHHs <-  getUnhappy(state)
-  emptyCells <-  getEmptyCells(state)
-  numberOfEmpty <-  nrow(getEmptyCells(state))
-  numberOfUnHappy <-  nrow(getUnhappy(state))
-  
-  # if there is more empty room than unhappy, we can move everyone in a single move
-    if (numberOfEmpty > numberOfUnHappy) {
-  futureOccupiedCells <-  sample_n(emptyCells, numberOfUnHappy)
-  
-  #State has to be updated by swapping values of these two cells , ID is useful here
-  state[state$ID == emptyCells$ID, "value"] <- uHHHs$value
-  state[state$ID == uHHHs$ID, "value"] <- emptyCells$value
-  
-  #moving changes happiness, so we update the state
-  state <-  updateHappiness(state, tolerance)
-  
-  }
-  
-  # if there is more unhappy than empty cells, we subset householders as futureMovers
-  if (numberOfEmpty < numberOfUnHappy) {
-  futureMovers <-  sample_n(unhappy, numberOfEmpty)
-  futureOccupiedCells <-  emptyCells
-  
-#State has to be updated by swapping values of these two cells , ID is useful here
-  state[state$ID == emptyCells$ID, "value"] <- futureMovers$value
-  state[state$ID == futureMovers$ID, "value"] <- emptyCells$value
-  
-  #moving changes happiness, so we update the state
-  state <-  updateHappiness(state, tolerance)
-  }
-  return(state)
-}
-
-```
+More efficient code is available in the `moreEfficientSchelling.R`file, with a multigroup version.
 
