@@ -36,13 +36,16 @@ library(rvest)
 
 # Ethics, some elements of reflexion.
 
-In two words : 
+**In two words**
 
-- Grey Zone ! Heavily dependent of your country.  
-- Text not so clear, but RGPD include **derogations** for researchers
-- Contact CNIL (France) or similar institute in your country
+- Grey Zone ! Heavily dependent of your country and the site you scrap !
+- Law is clearly not so clear, but now RGPD include **derogations** for researchers
+- Contact CNIL (France) or [similar institute in your country](https://www.cnil.fr/fr/la-protection-des-donnees-dans-le-monde), they will help you !
 
-In more than two words, a document writed for this school :
+**In more than two words ...**
+
+- Read new European Law : GPDR or RGPD (not a joke, not so hard to read)
+- Read this starting paper writed on this subject for this school :
 https://hackmd.io/g9JrWURjTHyLr9EWQqKoiQ?both
 
 # A <img src='images/noun_Cat_549889.svg' width="40"> and <img src='images/noun_Mouse_549960.svg' width="40"> game (1)
@@ -67,20 +70,29 @@ Legend : {`r fa("star", fill = "orange")` : cost, difficulty to implement } , {`
 
 One rule : *If you see it on your browser, so you can get it*
 
-- Basics : 
-    - using lot of slave people in parallel (joke!)
-    - analyze webpage structure and network data
-    - pay for online tools made by others
-    - ask dev community
-   
-- Advanced :
-    - use User-Agent
-    - use the OCR / IA 
-    - use Proxy/VPN or TOR
-    - use cookie/js injection
-    - use headless browsers 
-    - use a framework (=> Scrapy !)
-    - use a framework + headless browser
+<div class="left">
+ **Basics :**
+
+- using lot of slave people in parallel (joke!)
+- analyze webpage structure and network data
+- pay for online tools made by others
+- ask dev community
+
+</div>
+
+<div class="right">
+
+**Advanced :**
+
+- random User-Agent
+- use the OCR / IA 
+- use Proxy/VPN or TOR network (Hiding!)
+- use cookie and js injection
+- use headless browsers
+- multiply the browsers to speed up your scrap !
+- use a framework (=> Scrapy / Python !)
+- use a framework + headless browser
+</div>
 
 # Packages
 
@@ -672,3 +684,14 @@ html_nodes(html, xpath = "//text()[contains(.,'cochons') and not(contains(.,'pou
 ```{r}
 html_nodes(html, xpath = "//div[@class='comment']")
 ```
+
+# Uses cases 
+
+![](images/leboncoin.jpg){width=10%}
+
+- First tutorial (beginer), open `/Web_data_collection/scrap_leboncoin/projet_leboncoin.Rproj` or directly the [html page online](https://dynamitestaff.github.io/R-workshops/Web_data_collection/scrap_leboncoin/projet_leboncoin.html)
+
+![](images/flightradar.jpg){width=10%} ![](images/docker.jpg){width=10%}
+
+- Second tutorial (advanced), open `/Web_data_collection/scrap_flightradar/scrap_flightradar.Rmd` or directly the [html page online](https://dynamitestaff.github.io/R-workshops/Web_data_collection/scrap_flightradar/scrap_flightradar.html)
+

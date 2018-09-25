@@ -8,6 +8,9 @@ output:
     number_sections: true
 ---
 
+<script language="JavaScript" SRC="js/asciinema-player.js"></SCRIPT>
+  <link rel="stylesheet" type="text/css" href="css/asciinema-player.css" />
+  
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, error=TRUE)
 ```
@@ -562,7 +565,7 @@ a) Using a **binded volume**, this is the easiest way actually. Open your termin
 
 ```bash
 mkdir localbackup
-docker run --name rflightscraps -d -e UID=1000 -e GID=1000 --mount type=bind,source=$(pwd)/localbackup,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscraps --name rflightscraps
+docker run --name rflightscraps -d -e UID=1000 -e GID=1000 --mount type=bind,source=$(pwd)/localbackup,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscraps
 ```
 
 To see if your container is running and consult the logs of execution : 
@@ -587,7 +590,7 @@ docker volume ls
 Mount the volume : 
 
 ```bash
-docker run --mount type=volume,source=myDataVolume,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscrap
+docker run --mount type=volume,source=myDataVolume,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscraps
 ```
 
 Export data  : 
@@ -604,6 +607,12 @@ Export data  :
 <center>
 <img src='images/docker_exportServer.png'/>
 </center>
+
+If you don't have a server yet, you could buy one with docker already installed for cheap / month :
+- https://www.digitalocean.com/products/one-click-apps/docker/
+- https://www.ovh.com/fr/vps/vps-cloud.xml
+
+  <asciinema-player src="203002.cast" cols="106" rows="53"></asciinema-player>
 
 ## Tutorial Docker / Windows & Mac 
 
@@ -644,7 +653,7 @@ First, create a new folder named `localbackup` into your users folder on windows
 After that, change the path by yours in this command and run it.
 
 ```bash
-docker run --name rflightscraps -d -e UID=1000 -e GID=1000 --mount type=bind,source=/c/Users/reyse/localbackup,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscraps --name rflightscraps 
+docker run --name rflightscraps -d -e UID=1000 -e GID=1000 --mount type=bind,source=/c/Users/reyse/localbackup,destination=/usr/local/src/flight-scrap/docker-scripts/data rflightscraps 
 ```
 
 The end, close the session !
