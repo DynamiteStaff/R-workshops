@@ -29,7 +29,7 @@ nb_links <- read_html(page_base) %>%
   html_text() %>% 
   first() %>% 
   str_replace(" ","") %>% 
-  as.numeric()
+  as.numeric()x²
 nb_pages=ceiling(nb_links/35)
 
 

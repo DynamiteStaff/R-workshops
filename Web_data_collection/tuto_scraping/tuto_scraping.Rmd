@@ -23,76 +23,35 @@ library(rvest)
 
 - Webscraping, what is this ?
 - Some ethicals considerations
+- A theoritical HTML page
+    - Read Html using rvest
+    - How manipulate data efficiently (purrr, string)
+    - How-to extract link & data from HTML (Regex, CSS, XPath)
 - A cat and mouse game :) 
-- An HTML page
-- How manipulate data efficiently (purrr, string)
-- How-to extract link & data from HTML (Regex, CSS, XPath)
-- Use API :(
+- Uses cases
 
 # Webscraping 
 
-- bla bla Webscraping sauce sauvage
-- bla bla Webscraping avec API
+- definition
+- some elements of web architecture 
 
 # Ethics, some elements of reflexion.
 
 **In two words**
 
-- Grey Zone ! Heavily dependent of your country and the site you scrap !
-- Law is clearly not so clear, but now RGPD include **derogations** for researchers
-- Contact CNIL (France) or [similar institute in your country](https://www.cnil.fr/fr/la-protection-des-donnees-dans-le-monde), they will help you !
+  - Grey Zone !! Heavily dependent of your country and the site you scrap !
+  - Law is clearly not so clear, but now RGPD include **derogations** for researchers
+  - Contact CNIL (France) or [similar institute in your country](https://www.cnil.fr/fr/la-protection-des-donnees-dans-le-monde), they will help you !
+  - **Don't publish any data on the web** before anonymisation !
+  - Collect data limited to your project
+  - Protect personnal data very seriously (data-center, encrypted, firewall protection, etc.)
 
 **In more than two words ...**
 
-- Read new European Law : GPDR or RGPD (not a joke, not so hard to read)
-- Read this starting paper writed on this subject for this school :
+  - Read new European Law : GPDR or RGPD (not a joke, not so hard to read)
+  - Read this starting paper writed on this subject for this school :
 https://hackmd.io/g9JrWURjTHyLr9EWQqKoiQ?both
-
-# A <img src='images/noun_Cat_549889.svg' width="40"> and <img src='images/noun_Mouse_549960.svg' width="40"> game (1)
-
-**How to defend from webscraping : **
-
-Legend : {`r fa("star", fill = "orange")` : cost, difficulty to implement } , {`r fa("star", fill = "red")` : dificulty to bypass } , { `r fa("smile", fill = "black")` or `r fa("frown", fill = "black")`  : user happiness }
-
-- change or randomize some internal structure of HTML pages (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")` )
-- sample, limits data displayed in time/quantity (`r fa("star", fill = "red")` `r fa("star", fill = "red")` `r fa("star", fill = "red")`/ `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")`)
-- use captcha (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")`)
-- insert all informations into image, remove textual information  ( `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")` )
-- ask authentification before display any information (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
-- add a signature invisible in the content (honey pot) (`r fa("star", fill = "red")` `r fa("star", fill = "red")`/ `r fa("star", fill = "orange")` `r fa("star", fill = "orange")`/ `r fa("smile", fill = "black")`)
-- slowing at infinite the download of the content (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
-- device/browser fingerprinting (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`  )
-- pay company to do part of this ex: cloudflare (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
-
-# A <img src='images/noun_Cat_549889.svg' width="40"> and <img src='images/noun_Mouse_549960.svg' width="40"> game (2)
-
-**How to attack : **
-
-One rule : *If you see it on your browser, so you can get it*
-
-<div class="left">
- **Basics :**
-
-- using lot of slave people in parallel (joke!)
-- analyze webpage structure and network data
-- pay for online tools made by others
-- ask dev community
-
-</div>
-
-<div class="right">
-
-**Advanced :**
-
-- random User-Agent
-- use the OCR / IA 
-- use Proxy/VPN or TOR network (Hiding!)
-- use cookie and js injection
-- use headless browsers
-- multiply the browsers to speed up your scrap !
-- use a framework (=> Scrapy / Python !)
-- use a framework + headless browser
-</div>
+  - Be inspirated by [existing case of scrapping](https://www.legifrance.gouv.fr/affichCnil.do?id=CNILTEXT000036945250) or other discipline (medecine)
 
 # Packages
 
@@ -103,7 +62,7 @@ One rule : *If you see it on your browser, so you can get it*
 - <img src='images/purrr_logo.png' width='50'>`purrr`: iteration
 </div>
 
-# Web scraping
+# A theoretical example of Web scraping
 
 <div class="left">
 
@@ -684,6 +643,55 @@ html_nodes(html, xpath = "//text()[contains(.,'cochons') and not(contains(.,'pou
 ```{r}
 html_nodes(html, xpath = "//div[@class='comment']")
 ```
+
+# A <img src='images/noun_Cat_549889.svg' width="40"> and <img src='images/noun_Mouse_549960.svg' width="40"> game (1)
+
+**How to defend from webscraping : **
+
+Legend : {`r fa("star", fill = "orange")` : cost, difficulty to implement } , {`r fa("star", fill = "red")` : dificulty to bypass } , { `r fa("smile", fill = "black")` or `r fa("frown", fill = "black")`  : user happiness }
+
+- change or randomize some internal structure of HTML pages (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")` )
+- sample, limits data displayed in time/quantity (`r fa("star", fill = "red")` `r fa("star", fill = "red")` `r fa("star", fill = "red")`/ `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")`)
+- use really weird Captcha (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")`)
+- insert all informations into image, remove textual information  ( `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("frown", fill = "black")` )
+- ask authentification before display any informations (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
+- add a signature invisible in the content (honey pot) (`r fa("star", fill = "red")` `r fa("star", fill = "red")`/ `r fa("star", fill = "orange")` `r fa("star", fill = "orange")`/ `r fa("smile", fill = "black")`)
+- slowing at infinite the download of the content (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
+- device/browser fingerprinting (`r fa("star", fill = "red")` `r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`  )
+- pay company to do part of this, ex: cloudflare (`r fa("star", fill = "red")` / `r fa("star", fill = "orange")` / `r fa("smile", fill = "black")`)
+
+# A <img src='images/noun_Cat_549889.svg' width="40"> and <img src='images/noun_Mouse_549960.svg' width="40"> game (2)
+
+**How to attack : **
+
+One rule : *If you see it on your browser, so you can get it*
+
+<div class="left">
+ **Basics :**
+
+- using lot of slave people in parallel (joke!?)
+- analyze webpage structure and network data (search XHR/API)
+- use random (for time delay, query, location, etc.) 
+- use random user-agent
+- use cookie
+- pay for online tools made by others
+- ask dev community
+
+</div>
+
+<div class="right">
+
+**Advanced :**
+
+- use your imagination (limited to 1000 result for any reason ? => np, find another query with no limitation)
+- use OCR / AI (image to text ? no problem !)
+- use Proxy/VPN or TOR network (fast Hiding ! fast Jumping !)
+- use (headless) browsers (to simulate human behavior)
+- use a framework with lot of options (Scrapy & Python !)
+- use a framework + lot of headless browser on the cloud (an army of false human)
+
+</div>
+
 
 # Uses cases 
 
