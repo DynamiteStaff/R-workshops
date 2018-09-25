@@ -97,12 +97,23 @@ One rule : *If you see it on your browser, so you can get it*
 
 ![](images/step1_process.png)
 
+
+<div class="left">
+
+![](images/DOM-model.svg){width=80%}
+
+</div>
+
+<div class="right">
+
 **HTML Document**
 
 Understanding html documents' structure
 
 Tools **SelectorGadget**
 or html inspector
+</div>
+
 
 </div>
 <div class="right">
@@ -643,3 +654,21 @@ str_view_all(c("file1990-fileB1990-fileAbis2005"),
 ```
 
 </div>
+
+# Xpath
+
+XPATH is another way to query the DOM, it's very powerfull, but also a little complex.
+
+**Some examples :**
+
+```{r}
+html_nodes(html, xpath = "//div[@class='ingredients']//ul//li")
+```
+
+```{r}
+html_nodes(html, xpath = "//text()[contains(.,'cochons') and not(contains(.,'poule'))]")
+```
+
+```{r}
+html_nodes(html, xpath = "//div[@class='comment']")
+```
