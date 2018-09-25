@@ -10,10 +10,11 @@ output: html_document
 After loading packages...
 ```{r setup, eval=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
+library(magrittr)
 library(rmapzen)
 library(leaflet)
 library(hrbrthemes)
+library(dplyr)
 library(devtools)
 library(ggrepel)
 library(sf)
@@ -30,7 +31,7 @@ library(geosphere)
 library(gridExtra)
 library(cancensusHelpers)
 
-options(cancensus.api_key = "CensusMapper_5d949dee7f3e2546720b77d6ef08072e")
+options(cancensus.api_key = "CensusMapper_YourOwnAPIKey")
 
 ```
 
@@ -59,6 +60,7 @@ bdm <-  12000
 #Files from inside airbnb
 f  <-  list.files('insideairbnb/')
 
+filter = dplyr::filter
 ## Identifying the vectors for visible Minority status
 parent_vector <- "v_CA16_3954"
 minorities <- list_census_vectors("CA16") %>% 
