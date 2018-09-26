@@ -28,7 +28,7 @@ library(rvest)
     - How manipulate data efficiently (purrr, string)
     - How-to extract link & data from HTML (Regex, CSS, XPath)
 - A cat and mouse game :) 
-- Uses cases
+- Tutorial & Uses cases
 
 # Webscraping 
 
@@ -628,7 +628,8 @@ str_view_all(c("file1990-fileB1990-fileAbis2005"),
 
 # Xpath
 
-XPATH is another way to query the DOM, it's very powerfull, but also a little complex.
+XPATH is another way to query the DOM, it's very powerfull, but also a little complex. 
+Use some [cheatsheet](https://devhints.io/xpath) to remember principal operators.
 
 **Some examples :**
 
@@ -694,12 +695,23 @@ One rule : *If you see it on your browser, so you can get it*
 
 
 # Uses cases 
-
+<div class="left">
 ![](images/leboncoin.jpg){width=10%}
 
 - First tutorial (beginer), open `/Web_data_collection/scrap_leboncoin/projet_leboncoin.Rproj` or directly the [html page online](https://dynamitestaff.github.io/R-workshops/Web_data_collection/scrap_leboncoin/projet_leboncoin.html)
 
+
+</div>
+<div class="right">
+
 ![](images/flightradar.jpg){width=10%} ![](images/docker.jpg){width=10%}
 
-- Second tutorial (advanced), open `/Web_data_collection/scrap_flightradar/scrap_flightradar.Rmd` or directly the [html page online](https://dynamitestaff.github.io/R-workshops/Web_data_collection/scrap_flightradar/scrap_flightradar.html)
+- Second tutorial (advanced), open `/Web_data_collection/scrap_flightradar/scrap_flightradar.Rmd` or directly the [html page online](https://dynamitestaff.github.io/R-workshops/Web_data_collection/scrap_flightradar/scrap_flightradar.html) 
+
+**!Warning!** You need Docker installed 
+
+
+![](images/docker_exportServerExplaining.svg){width=70%}
+</div>
+
 
