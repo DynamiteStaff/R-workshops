@@ -8,10 +8,38 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
 ```{r, message=FALSE}
+
+library(httr)
 library(rvest)
 library(tidyverse)
-library(knitr)
+library(knitr) # Just to have nice tables in the html document... -> function 'kable'
+# And for geocoding:
+# devtools::install_github(repo = 'rCarto/photon')  
+library(photon)
 ```
+
+# Manage to read leboncoin pages
+
+If you try to read a page in Leboncoin using the `read_html()` function directly you'll likely get a 403 error message, meaning you have been denied the access. Send a query as if it was a regular query sent **from your browser**.
+
+Open your browser **Inspector** -> go to the Network tab and them go select the part of the answer that corresponds to the html part of the answer. Then have a look at the **headers** sent along with your query. We'll use 3 info items here and add them to our query :
+
+- User-Agent
+- Accept (accepted formats for the answer)
+- Accept-Language (accepted languages for the answer)
+
+```{r GET_leboncoin_pages}
+go_GET <- function(url){
+  result=GET(url,
+             add_headers(
+               "User-Agent" = "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0",
+               "Accept"="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+               "Accept-Language"="fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3"))
+  return(result)
+}
+go_GET("https://www.leboncoin.fr/ventes_immobilieres/offres/rhone_alpes/rhone/")
+```
+
 
 # Scrape all ads in the real estate category in leboncoin
 
@@ -22,19 +50,21 @@ library(knitr)
 Get the total number of ads and deduce the number of pages to scrape (35 ads are displayed per page).
 
 ```{r}
-page_base <- "https://www.leboncoin.fr/ventes_immobilieres/offres/rhone_alpes/rhone/"
+url_base <- "https://www.leboncoin.fr/ventes_immobilieres/offres/rhone_alpes/rhone/"
+url_base_raw <- go_GET(url_base)
+html_base <- read_html(url_base_raw)
 
-nb_links <- read_html(page_base) %>% 
+nb_links <- html_base  %>% 
   html_nodes("._2ilNG") %>%
   html_text() %>% 
   first() %>% 
   str_replace(" ","") %>% 
-  as.numeric()x²
+  as.numeric()
 nb_pages=ceiling(nb_links/35)
 
 
-pages=c(page_base,
-        str_c(page_base,"p-",2:nb_pages))
+pages=c(url_base,
+        str_c(url_base,"p-",2:nb_pages))
 pages[1:5]
 ```
 Now we have the urls of all the pages we have to scrape to get links to all ads (vector `pages`).
@@ -43,12 +73,12 @@ Now we have the urls of all the pages we have to scrape to get links to all ads 
 
 Definition of function `ads_by_page()` which takes a **page listing ads as an input and returns all ads' urls** as output.
 
+I added some **random waiting time** to each call to `ads_by_page()` of 1 to 5 seconds.
+
 ```{r ads_by_page}
 ads_by_page <- function(page){
-  my_html <- read_html(
-    curl::curl(page,
-               handle=curl::new_handle("useragent"="Mozilla/5.0"))
-  )
+  Sys.sleep(runif(1,1,5))
+  my_html <- read_html(go_GET(page))
   links <- my_html %>%
       html_nodes(".clearfix") %>% 
       html_attr("href") %>% 
@@ -59,16 +89,14 @@ ads_by_page <- function(page){
 ads_by_page(pages[1])
 ```
 
-Now **apply iteratively function `ads_by_page()` to all pages' urls listed in `pages`.
+Now **apply iteratively** function `ads_by_page()` to all pages' urls listed in `pages`.
+
+And I didn't actually do it on all `r length(pages)` pages but only on 3 of them, to show you the principle!
 
 ```{r tib_ads_urls}
-if(!file.exists("data/tib_ads_urls.csv")){
-    tib_ads_urls <- map(pages,safely(ads_by_page)) %>%
-      map("result") %>% 
-      bind_rows()
-    write_csv(tib_ads_urls,"data/tib_ads_urls.csv")
-}
-tib_ads_urls=read_csv("data/tib_ads_urls.csv")
+tib_ads_urls <- map(pages[1:3],safely(ads_by_page)) %>%
+  map("result") %>% 
+  bind_rows()
 ```
 
 ## For each ad, get info
@@ -76,8 +104,7 @@ tib_ads_urls=read_csv("data/tib_ads_urls.csv")
 Define function `ad_info()`, which takes **an ad's url** as an input and returns, as an output, a **tibble** with information regarding
 
 - `url`: the ads' urls
-- `header`: their headers,
-- `date`: the date they were published
+- `title`: their titles,
 - `type`: the type of property
 - `surface`: the surface of the property
 - `rooms`: the number of rooms
@@ -85,17 +112,14 @@ Define function `ad_info()`, which takes **an ad's url** as an input and returns
 - `energy_class`: Energy class category,
 - `location`: Location of the property
 
-I added some **random waiting time** to each call to `ad_info()` of 0 to 1 second.
+I added some **random waiting time** to each call to `ad_info()` of 1 to 5 seconds.
 
 ```{r ad_info}
-ad_info=function(ad){
-    Sys.sleep(0.5+runif(1,-0.5,0.5))
-    html_ad <- read_html(ad)
-    header <- html_ad %>% 
+ad_info <- function(ad){
+    Sys.sleep(runif(1,1,5))
+    html_ad <- read_html(go_GET(ad))
+    title <- html_ad %>% 
       html_nodes("._1KQme") %>% 
-      html_text()
-    date <- html_ad %>% 
-      html_nodes("._3Pad-") %>% 
       html_text()
     criteria <- 
       tibble(name= html_ad %>% html_nodes("._3-hZF") %>% html_text(),
@@ -110,8 +134,9 @@ ad_info=function(ad){
     price <- html_ad %>% 
       html_nodes(".eVLNz") %>% 
       html_text() %>% 
+      first() %>% 
       str_replace_all("[^0-9]","") %>% 
-      as.numeric()
+      as.numeric() 
     GHG <- html_ad %>% 
       html_nodes("._2BhIP") %>% 
       html_text() %>% 
@@ -124,32 +149,47 @@ ad_info=function(ad){
       html_nodes("._1aCZv") %>% 
       html_text() %>% 
       str_replace("Voir sur la carte","")
+    ## Geocoding
+    #
+    #zipcode <- str_extract(location,"\\d+") 
+    #city <- str_extract(location,"[A-Za-z- ]+")
+    # url <- str_c("https://geocode.xyz/",zipcode,"+",city,"?json=1&region=FR")
+    # raw_json <- GET(url)
+    # geocode <- content(raw_json,as="parsed")
+    # latitude <- geocode$latt
+    # longitude <- geocode$longt
+    coord_table=photon::geocode(location)
+    latitude=coord_table$lat[1]
+    longitude=coord_table$lon[1]
     tib_ad=bind_cols(urls=ad,
-                     header=header,
-                     date=date,
+                     title=title,
+                     price=price,
                      type=type,
                      surface=surface,
                      rooms=rooms,
                      GHG=GHG,
                      energy_class=energy_class,
-                     location=location)
+                     location=location,
+                     latitude=latitude,
+                     longitude=longitude)
     return(tib_ad)
 }
 ad_info(tib_ads_urls$urls[1]) %>% kable()
 ```
 
-Now **apply iteratively this function `ad_info()`** to all ads in `tib_ads_urls`, using `purrr` iteration:
+Please note that while during the course we had geocoded using the geocode.xyz API, this might not be optimal for geocoding with R. This choice was due to the fact that we wanted to show you **how to use an API in a direct query**. You can also geocode using other APIs with API clients (see for instance function `geocode()` in package `photon`, which is the solution we finally used in this document).
+
+Now **apply iteratively this function `ad_info()`** to all ads in `tib_ads_urls`, using `purrr` iteration.
+
+I actually did not do it on all ads but just on 20 of them to show you the principle!
 
 ```{r tib_ads}
-if(!file.exists("data/tib_ads.csv")){
-  tmp=Sys.time()
-   tib_ads <- map(tib_ads_urls$urls, safely(ad_info)) %>% 
+tmp=Sys.time()
+tib_ads <- map(tib_ads_urls$urls[1:20],
+                  safely(ad_info)) %>% 
      map("result") %>% bind_rows()
-  Sys.time()-tmp
-   write_csv(tib_ads,"data/tib_ads.csv")
-}
-tib_ads <- read_csv("data/tib_ads.csv")
+time_for_20_ads <- Sys.time()-tmp
 tib_ads %>% kable()
 ```
 
-For ~16000 ads, it took about 4 hours for this chunk to run on my computer...
+For 20 ads, it took us about 1.5 minutes to get the data so if we would like to do this on all ads (~14000 ads) then it would take along time (about 18 hours...)!
