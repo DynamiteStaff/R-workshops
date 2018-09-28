@@ -22,8 +22,8 @@ library(rvest)
 # Today !
 
 - Webscraping, what is this ?
-- Some ethicals considerations
-- A theoritical HTML page
+- Some ethical considerations
+- A theoretical HTML page
     - Read Html using rvest
     - How manipulate data efficiently (purrr, string)
     - How-to extract link & data from HTML (Regex, CSS, XPath)
