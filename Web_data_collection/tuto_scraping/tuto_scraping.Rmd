@@ -49,9 +49,9 @@ library(rvest)
 **In more than two words ...**
 
   - Read new European Law : GPDR or RGPD (not a joke, not so hard to read)
-  - Read this starting paper writed on this subject for this school :
+  - Read this starting paper written on this subject for this school :
 https://hackmd.io/g9JrWURjTHyLr9EWQqKoiQ?both
-  - Be inspirated by [existing case of scrapping](https://www.legifrance.gouv.fr/affichCnil.do?id=CNILTEXT000036945250) or other discipline (medecine)
+  - Be inspired by [existing case of scrapping](https://www.legifrance.gouv.fr/affichCnil.do?id=CNILTEXT000036945250) or other discipline (medecine)
 
 # Packages
 

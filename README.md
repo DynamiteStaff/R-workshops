@@ -14,11 +14,9 @@ Material workshops:
     - [Let's Practice](https://dynamitestaff.github.io/R-workshops/Geovisualisation/exercises/exercises.html)
     
     
-<!---
 - Web Data Collection
     - [Web scraping with R](https://dynamitestaff.github.io/R-workshops/Web_data_collection/tuto_scraping/tuto_scraping.html)
     - [Scraping leboncoin](https://dynamitestaff.github.io/R-workshops/Web_data_collection/scrap_leboncoin/projet_leboncoin.html)
     - [ScrapFlightRadar](https://dynamitestaff.github.io/R-workshops/Web_data_collection/scrap_flightradar/scrap_flightradar.html)
     - [Retrieving Twitter data from its API](https://dynamitestaff.github.io/R-workshops/Web_data_collection/API_twitter/API_twitter.html)
-
-    ---->
+    - An [article about the ethics of webscraping] (https://hackmd.io/g9JrWURjTHyLr9EWQqKoiQ?both)
